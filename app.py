@@ -5,10 +5,7 @@ import seaborn as sns
 from datetime import datetime, timedelta
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import StandardScaler
 import os
-import plotly.express as px
-import plotly.graph_objects as go
 
 # Настройка страницы
 st.set_page_config(
@@ -57,13 +54,6 @@ st.markdown("""
         border-radius: 10px;
         padding: 1rem;
         margin: 1rem 0;
-    }
-    .exercise-card {
-        background-color: #f8f9fa;
-        border: 1px solid #e9ecef;
-        border-radius: 10px;
-        padding: 1rem;
-        margin: 0.5rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -145,18 +135,13 @@ class FitnessApp:
         return stats
 
 # Инициализация приложения
-@st.cache_resource
-def get_app():
-    return FitnessApp()
-
-app = get_app()
+app = FitnessApp()
 
 # Заголовок приложения
 st.markdown('<h1 class="main-header">💪 Фитнес Трекер Pro</h1>', unsafe_allow_html=True)
 
 # Сайдбар для навигации
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/3565/3565418.png", width=100)
     st.title("Навигация")
     
     page = st.radio(
@@ -185,7 +170,6 @@ if page == "📊 Панель управления":
         
         col1, col2, col3 = st.columns(3)
         with col2:
-            st.image("https://cdn-icons-png.flaticon.com/512/3481/3481079.png", width=200)
             st.markdown("""
             <div style='text-align: center;'>
                 <h3>Начните свой фитнес-путь!</h3>
@@ -233,117 +217,129 @@ if page == "📊 Панель управления":
                     st.caption(workout['date'])
                 st.markdown("---")
         
-        # График активности
+        # График активности с matplotlib
         st.markdown("### Активность по дням")
         if not df.empty:
             df['date_only'] = df['date'].dt.date
-            daily_workouts = df.groupby('date_only').size().reset_index()
-            daily_workouts.columns = ['date', 'workouts']
+            daily_workouts = df.groupby('date_only').size()
             
-            fig = px.bar(daily_workouts, x='date', y='workouts', 
-                        title='Количество тренировок по дням',
-                        color='workouts',
-                        color_continuous_scale='blues')
-            fig.update_layout(xaxis_title='Дата', yaxis_title='Тренировки')
-            st.plotly_chart(fig, use_container_width=True)
+            fig, ax = plt.subplots(figsize=(10, 4))
+            daily_workouts.plot(kind='bar', ax=ax, color='skyblue')
+            ax.set_title('Количество тренировок по дням')
+            ax.set_xlabel('Дата')
+            ax.set_ylabel('Тренировки')
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            st.pyplot(fig)
 
 # Добавление тренировки
 elif page == "➕ Новая тренировка":
     st.markdown('<h2 class="sub-header">➕ Добавить новую тренировку</h2>', unsafe_allow_html=True)
     
-    # Переменная для хранения выбранного упражнения
-    if 'selected_exercise' not in st.session_state:
-        st.session_state.selected_exercise = ""
+    # Инициализация состояния сессии
+    if 'workout_data' not in st.session_state:
+        st.session_state.workout_data = {
+            'exercise': '',
+            'weight': 50.0,
+            'reps': 8,
+            'sets': 4,
+            'notes': ''
+        }
     
-    # Предустановленные упражнения ДО формы
-    st.subheader("Быстрый выбор упражнений")
-    preset_cols = st.columns(5)
-    preset_exercises = ["Жим лежа", "Приседания", "Становая тяга", "Тяга к поясу", "Жим стоя"]
+    col1, col2 = st.columns(2)
     
-    for i, preset in enumerate(preset_exercises):
-        with preset_cols[i]:
-            if st.button(preset, use_container_width=True, key=f"preset_{i}"):
-                st.session_state.selected_exercise = preset
-                st.rerun()
-    
-    # Форма для ввода данных
-    with st.form("workout_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Основные данные")
         
-        with col1:
-            st.subheader("Основные данные")
-            exercise = st.text_input(
-                "Упражнение 🏋️",
-                value=st.session_state.selected_exercise,
-                placeholder="Жим лежа, Приседания, Становая тяга...",
-                help="Введите название упражнения"
-            )
-            weight = st.number_input(
-                "Вес (кг) ⚖️", 
-                min_value=0.0, 
-                step=0.5,
-                value=50.0,
-                help="Рабочий вес в килограммах"
-            )
+        # Быстрый выбор упражнений
+        st.write("**Быстрый выбор:**")
+        preset_cols = st.columns(5)
+        preset_exercises = ["Жим лежа", "Приседания", "Становая тяга", "Тяга к поясу", "Жим стоя"]
         
-        with col2:
-            st.subheader("Параметры")
-            reps = st.number_input(
-                "Количество повторений 🔁", 
-                min_value=1, 
-                step=1,
-                value=8,
-                help="Количество повторений в подходе"
-            )
-            sets = st.number_input(
-                "Количество подходов 📊", 
-                min_value=1, 
-                step=1,
-                value=4,
-                help="Количество подходов"
-            )
+        for i, preset in enumerate(preset_exercises):
+            with preset_cols[i]:
+                if st.button(preset, key=f"preset_{i}"):
+                    st.session_state.workout_data['exercise'] = preset
+                    st.rerun()
         
-        notes = st.text_area(
-            "Заметки к тренировке 📝", 
-            placeholder="Опишите как прошла тренировка, самочувствие, технические моменты...",
-            height=100
+        exercise = st.text_input(
+            "Упражнение 🏋️",
+            value=st.session_state.workout_data['exercise'],
+            placeholder="Введите название упражнения...",
+            key="exercise_input"
         )
         
-        submitted = st.form_submit_button(
-            "💾 Сохранить тренировку", 
-            use_container_width=True,
-            type="primary"
+        weight = st.number_input(
+            "Вес (кг) ⚖️", 
+            min_value=0.0, 
+            step=0.5,
+            value=st.session_state.workout_data['weight'],
+            key="weight_input"
+        )
+    
+    with col2:
+        st.subheader("Параметры")
+        reps = st.number_input(
+            "Количество повторений 🔁", 
+            min_value=1, 
+            step=1,
+            value=st.session_state.workout_data['reps'],
+            key="reps_input"
         )
         
-        if submitted:
+        sets = st.number_input(
+            "Количество подходов 📊", 
+            min_value=1, 
+            step=1,
+            value=st.session_state.workout_data['sets'],
+            key="sets_input"
+        )
+    
+    notes = st.text_area(
+        "Заметки к тренировке 📝", 
+        value=st.session_state.workout_data['notes'],
+        placeholder="Опишите как прошла тренировка...",
+        height=100,
+        key="notes_input"
+    )
+    
+    # Кнопки сохранения и очистки
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("💾 Сохранить тренировку", use_container_width=True, type="primary"):
             if exercise and weight > 0 and reps > 0 and sets > 0:
                 success, message = app.add_workout(exercise, weight, reps, sets, notes)
                 if success:
                     st.success(message)
                     st.balloons()
                     
-                    # Очищаем выбранное упражнение после успешного сохранения
-                    st.session_state.selected_exercise = ""
+                    # Очистка полей после сохранения
+                    st.session_state.workout_data = {
+                        'exercise': '',
+                        'weight': 50.0,
+                        'reps': 8,
+                        'sets': 4,
+                        'notes': ''
+                    }
                     
-                    # Показываем сводку сохраненной тренировки
-                    st.markdown("### 📋 Сводка тренировки")
-                    col1, col2, col3, col4 = st.columns(4)
-                    with col1:
-                        st.metric("Упражнение", exercise)
-                    with col2:
-                        st.metric("Вес", f"{weight} кг")
-                    with col3:
-                        st.metric("Повторения", reps)
-                    with col4:
-                        st.metric("Подходы", sets)
-                    
-                    # Расчет объема
-                    volume = weight * reps * sets
-                    st.info(f"**Объем тренировки:** {volume:.0f} кг")
+                    # Обновление интерфейса
+                    st.rerun()
                 else:
                     st.error(message)
             else:
                 st.error("❌ Заполните все обязательные поля!")
+    
+    with col2:
+        if st.button("🧹 Очистить форму", use_container_width=True):
+            st.session_state.workout_data = {
+                'exercise': '',
+                'weight': 50.0,
+                'reps': 8,
+                'sets': 4,
+                'notes': ''
+            }
+            st.rerun()
 
 # Анализ прогресса
 elif page == "📈 Анализ прогресса":
@@ -585,10 +581,16 @@ elif page == "🤖 Умные прогнозы":
                     stats_df = pd.DataFrame(stats_data)
                     st.dataframe(stats_df, use_container_width=True, hide_index=True)
                 
-                # График с прогнозом
+                # График с прогнозом (используем Matplotlib)
                 st.markdown("### 🔮 График прогресса с прогнозом")
                 
-                # Создаем расширенный dataframe с прогнозами
+                fig, ax = plt.subplots(figsize=(12, 6))
+                
+                # Исторические данные
+                ax.plot(exercise_data['date'], exercise_data['weight'], 'o-', 
+                       linewidth=2, markersize=6, label='Исторические данные', color='#1f77b4')
+                
+                # Прогноз
                 future_dates = [
                     exercise_data['date'].max() + timedelta(days=7),
                     exercise_data['date'].max() + timedelta(days=14),
@@ -596,31 +598,18 @@ elif page == "🤖 Умные прогнозы":
                     exercise_data['date'].max() + timedelta(days=90)
                 ]
                 
-                future_df = pd.DataFrame({
-                    'date': future_dates,
-                    'weight': predictions,
-                    'type': 'Прогноз'
-                })
+                ax.plot(future_dates, predictions, 's--', 
+                       linewidth=2, markersize=8, label='Прогноз', color='#ff7f0e')
                 
-                history_df = pd.DataFrame({
-                    'date': exercise_data['date'],
-                    'weight': exercise_data['weight'],
-                    'type': 'История'
-                })
+                ax.set_title(f'Исторический прогресс и прогноз для {selected_exercise}', fontsize=14, fontweight='bold')
+                ax.set_xlabel('Дата')
+                ax.set_ylabel('Вес (кг)')
+                ax.legend()
+                ax.grid(True, alpha=0.3)
+                plt.xticks(rotation=45)
+                plt.tight_layout()
                 
-                combined_df = pd.concat([history_df, future_df])
-                
-                fig = px.line(combined_df, x='date', y='weight', color='type',
-                             title=f'Исторический прогресс и прогноз для {selected_exercise}',
-                             color_discrete_map={'История': '#1f77b4', 'Прогноз': '#ff7f0e'})
-                
-                fig.update_layout(
-                    xaxis_title='Дата',
-                    yaxis_title='Вес (кг)',
-                    height=500
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
+                st.pyplot(fig)
 
 # Достижения
 elif page == "🏆 Достижения":
