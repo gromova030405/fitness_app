@@ -859,4 +859,325 @@ else:
             **Что делать:**
             1. Добавьте больше тренировок через раздел "➕ Новая тренировка"
             2. Или создайте демо-данные через раздел "🔄 Демо-данные"
-            ""
+            """)
+        else:
+            exercises = app.get_user_exercises(st.session_state.current_user)
+            selected_exercise = st.selectbox(
+                "Выберите упражнение для анализа:",
+                exercises,
+                key="ml_exercise"
+            )
+            
+            if selected_exercise:
+                exercise_data = app.get_exercise_history(st.session_state.current_user, selected_exercise)
+                
+                if len(exercise_data) >= 3:
+                    # Подготовка данных для ML
+                    exercise_data = exercise_data.copy()
+                    exercise_data = exercise_data.sort_values('date')
+                    exercise_data['days_passed'] = (exercise_data['date'] - exercise_data['date'].min()).dt.days
+                    
+                    # Обучение модели
+                    X = exercise_data[['days_passed']].values
+                    y = exercise_data['weight'].values
+                    
+                    model = LinearRegression()
+                    model.fit(X, y)
+                    
+                    # Прогноз на будущее
+                    last_day = exercise_data['days_passed'].max()
+                    future_days = np.array([
+                        [last_day + 7],    # Через 1 неделю
+                        [last_day + 14],   # Через 2 недели
+                        [last_day + 30],   # Через 1 месяц
+                    ])
+                    predictions = model.predict(future_days)
+                    
+                    # Текущие показатели
+                    current_weight = exercise_data['weight'].iloc[-1]
+                    progress_rate = (current_weight - exercise_data['weight'].iloc[0]) / len(exercise_data) if len(exercise_data) > 0 else 0
+                    
+                    # Отображение прогнозов
+                    st.markdown("### 📊 Прогноз прогресса")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    time_periods = ["1 неделя", "2 недели", "1 месяц"]
+                    deltas = predictions - current_weight
+                    
+                    for i, col in enumerate([col1, col2, col3]):
+                        with col:
+                            st.metric(
+                                f"Через {time_periods[i]}",
+                                f"{predictions[i]:.1f} кг",
+                                delta=f"{deltas[i]:.1f} кг",
+                                delta_color="normal" if deltas[i] > 0 else "off"
+                            )
+                    
+                    # Рекомендации
+                    st.markdown("### 💡 Персональные рекомендации")
+                    
+                    recommendation_col1, recommendation_col2 = st.columns(2)
+                    
+                    with recommendation_col1:
+                        st.subheader("🎯 Рекомендации по весу")
+                        
+                        if progress_rate > 0.5:
+                            st.success("""
+                            **Отличный прогресс! 🎉**
+                            - Продолжайте текущую программу
+                            - Можно увеличить вес на 2.5-5 кг
+                            - Сфокусируйтесь на технике
+                            """)
+                            recommended_increase = 2.5
+                        elif progress_rate > 0.2:
+                            st.info("""
+                            **Хороший стабильный прогресс 📈**
+                            - Увеличивайте вес на 1-2.5 кг
+                            - Следите за восстановлением
+                            - Чередуйте тяжелые и легкие тренировки
+                            """)
+                            recommended_increase = 1.0
+                        else:
+                            st.warning("""
+                            **Прогресс медленный ⚡**
+                            - Рекомендуется изменить программу
+                            - Увеличьте частоту тренировок
+                            - Проверьте питание и сон
+                            """)
+                            recommended_increase = 0.0
+                        
+                        st.metric(
+                            "Рекомендуемый вес на следующую тренировку",
+                            f"{current_weight + recommended_increase} кг",
+                            delta=f"+{recommended_increase} кг" if recommended_increase > 0 else "0 кг"
+                        )
+                    
+                    with recommendation_col2:
+                        st.subheader("📈 Статистика прогресса")
+                        
+                        stats_data = {
+                            'Показатель': [
+                                'Текущий вес',
+                                'Начальный вес', 
+                                'Общий прогресс',
+                                'Скорость прогресса',
+                                'Тренировок выполнено'
+                            ],
+                            'Значение': [
+                                f"{current_weight} кг",
+                                f"{exercise_data['weight'].iloc[0]} кг",
+                                f"{current_weight - exercise_data['weight'].iloc[0]:.1f} кг",
+                                f"{progress_rate:.2f} кг/тренировка",
+                                f"{len(exercise_data)}"
+                            ]
+                        }
+                        
+                        stats_df = pd.DataFrame(stats_data)
+                        st.dataframe(stats_df, use_container_width=True, hide_index=True)
+                    
+                    # График с прогнозом
+                    st.markdown("### 🔮 График прогресса с прогнозом")
+                    
+                    fig, ax = plt.subplots(figsize=(12, 6))
+                    
+                    # Исторические данные
+                    ax.plot(exercise_data['date'], exercise_data['weight'], 'o-', 
+                           linewidth=2, markersize=6, label='Исторические данные', color='#1f77b4')
+                    
+                    # Прогноз
+                    future_dates = [
+                        exercise_data['date'].max() + timedelta(days=7),
+                        exercise_data['date'].max() + timedelta(days=14),
+                        exercise_data['date'].max() + timedelta(days=30),
+                    ]
+                    
+                    ax.plot(future_dates, predictions, 's--', 
+                           linewidth=2, markersize=8, label='Прогноз', color='#ff7f0e')
+                    
+                    ax.set_title(f'Исторический прогресс и прогноз для {selected_exercise}', fontsize=14, fontweight='bold')
+                    ax.set_xlabel('Дата')
+                    ax.set_ylabel('Вес (кг)')
+                    ax.legend()
+                    ax.grid(True, alpha=0.3)
+                    plt.xticks(rotation=45)
+                    plt.tight_layout()
+                    
+                    st.pyplot(fig)
+                else:
+                    st.warning(f"Для упражнения '{selected_exercise}' нужно минимум 3 тренировки для прогноза. Сейчас: {len(exercise_data)}")
+
+    # Достижения (ПОЛНАЯ ВЕРСИЯ)
+    elif page == "🏆 Достижения":
+        st.markdown(f'<h2 class="sub-header">🏆 Мои достижения</h2>', unsafe_allow_html=True)
+        
+        achievements = app.get_achievements(st.session_state.current_user)
+        stats = app.get_statistics(st.session_state.current_user)
+        
+        if achievements:
+            st.success(f"🎉 У вас {len(achievements)} достижений!")
+            
+            # Группируем достижения по колонкам
+            cols = st.columns(3)
+            for i, achievement in enumerate(achievements):
+                with cols[i % 3]:
+                    st.markdown(f"""
+                    <div class="achievement-card">
+                        <h3>{achievement['icon']}</h3>
+                        <h4>{achievement['title']}</h4>
+                        <p>{achievement['description']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.info("""
+            **Начните тренироваться чтобы получить достижения!** 🏋️
+            
+            **Доступные достижения:**
+            🎖️ **Первая тренировка** - Выполните первую тренировку
+            🔥 **Посвящение** - 10 тренировок
+            🏅 **Ветеран** - 50 тренировок
+            🎯 **Универсал** - 5 различных упражнений
+            💪 **Начало силы** - Покорите вес 50кг
+            💯 **Сотня** - Покорите вес 100кг
+            📅 **Регулярность** - 8+ тренировок за месяц
+            🚀 **Мастер прогресса** - Увеличение веса на 20+ кг
+            """)
+        
+        # Прогресс до следующих достижений
+        if stats:
+            st.markdown("### 🎯 Ближайшие цели")
+            
+            goals_data = []
+            
+            if stats['total_workouts'] < 10:
+                goals_data.append(["🔥 Посвящение", f"{stats['total_workouts']}/10", f"{10 - stats['total_workouts']} тренировок"])
+            
+            if stats['unique_exercises'] < 5:
+                goals_data.append(["🎯 Универсал", f"{stats['unique_exercises']}/5", f"{5 - stats['unique_exercises']} упражнений"])
+            
+            max_weight = stats.get('max_weight', 0)
+            if max_weight < 100:
+                next_milestone = 100 if max_weight >= 50 else 50
+                goals_data.append(["💪 Силовой рубеж", f"{max_weight:.1f}/{next_milestone}", f"{next_milestone - max_weight:.1f} кг"])
+            
+            if goals_data:
+                goals_df = pd.DataFrame(goals_data, columns=['Достижение', 'Прогресс', 'Осталось'])
+                st.dataframe(goals_df, use_container_width=True, hide_index=True)
+            else:
+                st.success("🎊 Все базовые цели достигнуты! Пора ставить новые рекорды!")
+
+    # Демо-данные (РАЗНЫЕ ДЛЯ КАЖДОГО ПОЛЬЗОВАТЕЛЯ)
+    elif page == "🔄 Демо-данные":
+        st.markdown(f'<h2 class="sub-header">🔄 Демо-данные</h2>', unsafe_allow_html=True)
+        
+        st.info("""
+        **Демо-данные** помогут вам протестировать все функции приложения.
+        Будут созданы реалистичные данные за последние 2 месяца.
+        """)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("🎯 Создать демо-данные", use_container_width=True, type="primary"):
+                # Разные демо-данные в зависимости от имени пользователя
+                user_hash = hashlib.md5(st.session_state.current_user.encode()).hexdigest()[:4]
+                base_number = int(user_hash, 16) % 3  # 0, 1 или 2
+                
+                demo_workouts = []
+                base_date = datetime.now() - timedelta(days=60)
+                
+                # Разные типы демо-данных
+                if base_number == 0:
+                    # Вариант 1: Силовой профиль
+                    exercises = ["Жим лежа", "Приседания", "Становая тяга", "Жим стоя", "Тяга штанги"]
+                    for i, exercise in enumerate(exercises):
+                        for j in range(8):
+                            date = base_date + timedelta(days=j*7 + i*2)
+                            base_weight = [60, 80, 100, 40, 70][i] + j * 5
+                            demo_workouts.append((
+                                date.strftime('%Y-%m-%d %H:%M:%S'),
+                                exercise,
+                                base_weight,
+                                6 if j < 6 else 4,
+                                4,
+                                f"{exercise} - тренировка {j+1}"
+                            ))
+                
+                elif base_number == 1:
+                    # Вариант 2: Общеразвивающий профиль
+                    exercises = ["Приседания", "Жим лежа", "Подтягивания", "Отжимания", "Планка"]
+                    for i, exercise in enumerate(exercises):
+                        for j in range(6):
+                            date = base_date + timedelta(days=j*8 + i)
+                            if exercise in ["Подтягивания", "Отжимания", "Планка"]:
+                                # Для упражнений с весом тела
+                                weight = 0
+                                reps = [8, 10, 12, 15, 8, 10][j]
+                                sets = 3
+                            else:
+                                weight = [70, 50, 0, 0, 0][i] + j * 3
+                                reps = 8
+                                sets = 4
+                            demo_workouts.append((
+                                date.strftime('%Y-%m-%d %H:%M:%S'),
+                                exercise,
+                                weight,
+                                reps,
+                                sets,
+                                f"{exercise} - неделя {j+1}"
+                            ))
+                
+                else:
+                    # Вариант 3: Смешанный профиль
+                    exercises = ["Становая тяга", "Жим гантелей", "Выпады", "Тяга блока", "Разведения гантелей"]
+                    for i, exercise in enumerate(exercises):
+                        for j in range(10):
+                            date = base_date + timedelta(days=j*5 + i)
+                            base_weight = [80, 20, 30, 50, 15][i] + j * 2
+                            demo_workouts.append((
+                                date.strftime('%Y-%m-%d %H:%M:%S'),
+                                exercise,
+                                base_weight,
+                                [10, 12, 15, 10, 15][i],
+                                4,
+                                f"{exercise} - прогресс +{j*2}кг"
+                            ))
+                
+                # Сохраняем все демо-тренировки
+                for workout in demo_workouts:
+                    app.add_workout(st.session_state.current_user, workout[1], workout[2], workout[3], workout[4], workout[5])
+                
+                st.success("✅ Демо-данные успешно созданы!")
+                st.balloons()
+                
+                st.markdown("""
+                ### 📊 Что было создано:
+                - **Реалистичная история** тренировок за 2 месяца
+                - **Разные упражнения** в зависимости от вашего профиля
+                - **Постепенный прогресс** в весах
+                - **Готовые данные** для тестирования всех функций
+                """)
+        
+        with col2:
+            if st.button("🗑️ Очистить мои данные", type="secondary"):
+                filename = app.get_user_filename(st.session_state.current_user)
+                if os.path.exists(filename):
+                    os.remove(filename)
+                    st.success("✅ Ваши данные очищены!")
+                    st.rerun()
+            
+            st.warning("""
+            ⚠️ **Внимание!**
+            При создании демо-данных:
+            - Существующие тренировки будут сохранены
+            - Добавятся новые демо-тренировки
+            - Каждый пользователь получает уникальные данные
+            """)
+
+# Футер
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center; color: #666;'>
+    <p>💪 <strong>Фитнес Трекер Pro v4.0</strong> | Полнофункциональная система тренировок</p>
+</div>
+""", unsafe_allow_html=True)
