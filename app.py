@@ -1545,11 +1545,32 @@ else:
             else:
                 st.info("Программы для вашей цели находятся в разработке. Скоро появятся!")
 
-    # Добавление тренировки (с возможностью добавления по программе)
+       # Добавление тренировки (с возможностью добавления по программе)
     elif st.session_state.current_page == "➕ Добавить тренировку":
         st.markdown('<h2 class="sub-header">➕ Добавить тренировку</h2>', unsafe_allow_html=True)
         
         with st.form("add_workout_form"):
+            # Проверяем, есть ли предзаполненные данные из программы
+            program_id = None
+            day = None
+            
+            if 'selected_program_for_workout' in st.session_state:
+                program_id = st.session_state.selected_program_for_workout
+                day = st.session_state.get('selected_day_for_workout', 'День 1')
+                
+                # Показываем информацию о выбранной программе
+                program_info = None
+                for goal, programs in app.training_programs.items():
+                    for program in programs:
+                        if program['id'] == program_id:
+                            program_info = program
+                            break
+                    if program_info:
+                        break
+                
+                if program_info:
+                    st.info(f"📋 Добавляем тренировку из программы: **{program_info['name']}** ({day})")
+            
             # Получаем доступные виды тренировок из предпочитаемых активностей
             preferred_activities = user_profile.get('preferred_activities', [])
             
@@ -1562,19 +1583,73 @@ else:
                     workout_options.append(display_name)
                     workout_mapping[display_name] = activity.get('name', activity_id)
                 
-                workout_type = st.selectbox(
-                    "Вид тренировки:",
-                    options=workout_options,
-                    key="workout_type_select"
-                )
+                # Если есть программа, подсказываем тип тренировки
+                if program_info and program_info.get('activities'):
+                    # Получаем первую активность из программы как рекомендуемую
+                    first_activity_id = program_info['activities'][0] if program_info['activities'] else None
+                    if first_activity_id:
+                        activity = app.activity_types.get(first_activity_id, {})
+                        default_option = f"{activity.get('icon', '🏃')} {activity.get('name', first_activity_id)}"
+                        if default_option in workout_options:
+                            workout_index = workout_options.index(default_option)
+                            workout_type = st.selectbox(
+                                "Вид тренировки:",
+                                options=workout_options,
+                                index=workout_index,
+                                key="workout_type_select"
+                            )
+                        else:
+                            workout_type = st.selectbox(
+                                "Вид тренировки:",
+                                options=workout_options,
+                                key="workout_type_select"
+                            )
+                    else:
+                        workout_type = st.selectbox(
+                            "Вид тренировки:",
+                            options=workout_options,
+                            key="workout_type_select"
+                        )
+                else:
+                    workout_type = st.selectbox(
+                        "Вид тренировки:",
+                        options=workout_options,
+                        key="workout_type_select"
+                    )
                 workout_type_clean = workout_mapping[workout_type]
             else:
-                workout_type = st.text_input("Вид тренировки:", placeholder="Например: Йога, Бег, Пилатес...", key="workout_type_text")
+                # Если есть программа, подсказываем тип тренировки
+                if program_info:
+                    # Используем первую активность из программы как подсказку
+                    if program_info.get('activities'):
+                        first_activity_id = program_info['activities'][0]
+                        activity = app.activity_types.get(first_activity_id, {})
+                        default_text = activity.get('name', first_activity_id)
+                    else:
+                        default_text = ""
+                    workout_type = st.text_input("Вид тренировки:", 
+                                                value=default_text,
+                                                placeholder="Например: Йога, Бег, Пилатес...", 
+                                                key="workout_type_text")
+                else:
+                    workout_type = st.text_input("Вид тренировки:", 
+                                                placeholder="Например: Йога, Бег, Пилатес...", 
+                                                key="workout_type_text")
                 workout_type_clean = workout_type
             
             col1, col2 = st.columns(2)
             with col1:
-                duration = st.number_input("Длительность (минут):", min_value=5, max_value=180, value=45, key="workout_duration")
+                # Если есть программа, подсказываем длительность
+                if program_info and 'session_duration' in program_info:
+                    default_duration = program_info['session_duration']
+                else:
+                    default_duration = 45
+                    
+                duration = st.number_input("Длительность (минут):", 
+                                         min_value=5, 
+                                         max_value=180, 
+                                         value=default_duration, 
+                                         key="workout_duration")
             with col2:
                 intensity = st.select_slider(
                     "Интенсивность:",
@@ -1583,18 +1658,39 @@ else:
                     key="workout_intensity"
                 )
             
-            notes = st.text_area("Заметки:", placeholder="Как прошла тренировка? Что понравилось?", key="workout_notes")
+            # Если есть программа, подсказываем заметки
+            if program_info:
+                default_notes = f"Тренировка из программы: {program_info['name']}, {day}"
+            else:
+                default_notes = ""
+                
+            notes = st.text_area("Заметки:", 
+                                value=default_notes,
+                                placeholder="Как прошла тренировка? Что понравилось?", 
+                                key="workout_notes")
             
-            # Если есть текущая программа, добавляем информацию о ней
-            current_program = user_profile.get('current_program')
-            program_id = None
-            day = None
-            if current_program:
-                program_id = current_program
+            # Если есть текущая программа ИЛИ мы перешли из просмотра программы, показываем информацию о дне
+            if program_id:
+                # Показываем информацию о дне, но не даем выбирать
+                st.info(f"📅 День программы: {day}")
+                # Сохраняем эти значения для отправки
+                final_program_id = program_id
+                final_day = day
+            elif user_profile.get('current_program'):
+                # Если есть текущая программа пользователя, но мы не из просмотра
+                current_program = user_profile.get('current_program')
+                final_program_id = current_program
                 day_options = [f"День {i}" for i in range(1, 8)]
-                day = st.selectbox("День программы:", options=day_options, key="workout_day")
+                final_day = st.selectbox("День программы:", 
+                                       options=day_options, 
+                                       key="workout_day")
+            else:
+                final_program_id = None
+                final_day = None
             
-            submit_button = st.form_submit_button("💾 Сохранить тренировку", use_container_width=True)
+            col_submit, col_clear = st.columns(2)
+            with col_submit:
+                submit_button = st.form_submit_button("💾 Сохранить тренировку", use_container_width=True)
             
             if submit_button:
                 success, message = app.add_workout(
@@ -1603,20 +1699,43 @@ else:
                     duration, 
                     intensity, 
                     notes,
-                    program_id,
-                    day
+                    final_program_id,
+                    final_day
                 )
                 
                 if success:
                     st.success(message)
                     st.balloons()
-                    # Сбрасываем просмотр программы
-                    if 'show_program_details' in st.session_state:
-                        st.session_state.show_program_details = None
-                    st.rerun()
+                    
+                    # Очищаем временные данные сессии после успешного сохранения
+                    if 'selected_program_for_workout' in st.session_state:
+                        del st.session_state.selected_program_for_workout
+                    if 'selected_day_for_workout' in st.session_state:
+                        del st.session_state.selected_day_for_workout
+                    
+                    # Даем пользователю выбор
+                    col_again, col_home = st.columns(2)
+                    with col_again:
+                        if st.button("➕ Добавить еще тренировку", use_container_width=True):
+                            # Очищаем форму, оставляя на той же странице
+                            st.rerun()
+                    with col_home:
+                        if st.button("🏠 На главную", use_container_width=True):
+                            st.session_state.current_page = "📊 Главная"
+                            st.rerun()
                 else:
                     st.error(message)
-
+            
+            with col_clear:
+                # Кнопка для очистки предзаполненных данных
+                if program_id:
+                    if st.form_submit_button("🗑️ Очистить программу", use_container_width=True):
+                        # Очищаем временные данные
+                        if 'selected_program_for_workout' in st.session_state:
+                            del st.session_state.selected_program_for_workout
+                        if 'selected_day_for_workout' in st.session_state:
+                            del st.session_state.selected_day_for_workout
+                        st.rerun()
     # Мой прогресс
     elif st.session_state.current_page == "📈 Мой прогресс":
         st.markdown('<h2 class="sub-header">📈 Мой прогресс</h2>', unsafe_allow_html=True)
@@ -1936,13 +2055,24 @@ if st.session_state.get('show_program_details'):
                         st.markdown("---")
                         col1, col2 = st.columns(2)
                         with col1:
-                            if st.button(f"➕ Добавить тренировку День {i+1}", use_container_width=True, key=f"add_{day_key}"):
-                                # Переходим на страницу добавления тренировки
-                                st.session_state.current_page = "➕ Добавить тренировку"
+                            # Используем ключ сессии для определения нажатия кнопки
+                            add_workout_key = f"add_workout_{day_key}_{i}"
+                            if st.button(f"➕ Добавить тренировку День {i+1}", 
+                                       use_container_width=True, 
+                                       key=add_workout_key):
+                                # Устанавливаем флаги и очищаем форму
+                                st.session_state.show_program_details = None
                                 st.session_state.selected_day = f"День {i+1}"
+                                st.session_state.current_page = "➕ Добавить тренировку"
+                                # Также сохраняем информацию о программе для предзаполнения
+                                st.session_state.selected_program_for_workout = program_id
+                                st.session_state.selected_day_for_workout = f"День {i+1}"
+                                # Запускаем перезагрузку
                                 st.rerun()
+                                
                         with col2:
-                            if st.button("❌ Закрыть", use_container_width=True, key=f"close_{day_key}"):
+                            close_key = f"close_program_{i}"
+                            if st.button("❌ Закрыть", use_container_width=True, key=close_key):
                                 st.session_state.show_program_details = None
                                 st.session_state.selected_day = None
                                 st.rerun()
