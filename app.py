@@ -8,7 +8,7 @@ import os
 import hashlib
 import json
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 import joblib
 
 # Настройка страницы
@@ -314,6 +314,29 @@ class FitnessAssistant:
                         'День 3: Круговая тренировка 40 мин'
                     ]
                 }
+            ],
+            'health': [
+                {
+                    'id': 'health_balance',
+                    'name': 'Сбалансированное здоровье',
+                    'level': 'Начальный',
+                    'description': 'Программа для общего оздоровления',
+                    'duration_weeks': 8,
+                    'sessions_per_week': 4,
+                    'session_duration': 40,
+                    'activities': ['yoga', 'cardio', 'strength'],
+                    'schedule': [
+                        'День 1: Йога для расслабления 30 мин',
+                        'День 2: Легкое кардио 30 мин',
+                        'День 3: Силовая тренировка 40 мин',
+                        'День 4: Активная прогулка 45 мин'
+                    ],
+                    'nutrition_tips': [
+                        'Сбалансированное питание',
+                        'Достаточное количество воды',
+                        'Регулярные приемы пищи'
+                    ]
+                }
             ]
         }
     
@@ -322,100 +345,130 @@ class FitnessAssistant:
         model_path = os.path.join(self.data_dir, 'training_recommender.pkl')
         
         if os.path.exists(model_path):
-            # Загружаем существующую модель
-            self.model = joblib.load(model_path)
-            self.scaler = joblib.load(os.path.join(self.data_dir, 'scaler.pkl'))
+            try:
+                # Загружаем существующую модель
+                self.model = joblib.load(model_path)
+                self.scaler = joblib.load(os.path.join(self.data_dir, 'scaler.pkl'))
+                return True
+            except:
+                # Если ошибка загрузки, создаем новую модель
+                return self.train_recommendation_model()
         else:
             # Создаем и обучаем модель на синтетических данных
-            self.train_recommendation_model()
+            return self.train_recommendation_model()
     
     def train_recommendation_model(self):
         """Обучает модель на синтетических данных"""
-        # Создаем синтетические данные для обучения
-        np.random.seed(42)
-        n_samples = 1000
-        
-        # Признаки: возраст, вес, рост, пол (0-жен,1-муж), цель (кодированная)
-        X = np.zeros((n_samples, 5))
-        X[:, 0] = np.random.randint(18, 65, n_samples)  # возраст
-        X[:, 1] = np.random.normal(70, 15, n_samples)   # вес
-        X[:, 2] = np.random.normal(170, 10, n_samples)  # рост
-        X[:, 3] = np.random.randint(0, 2, n_samples)    # пол
-        
-        # Рассчитываем ИМТ
-        bmi = X[:, 1] / ((X[:, 2] / 100) ** 2)
-        
-        # Цели на основе ИМТ и других факторов
-        y = []
-        for i in range(n_samples):
-            if bmi[i] > 25:
-                y.append('weight_loss')  # Похудение
-            elif bmi[i] < 18.5:
-                y.append('muscle_gain')  # Набор массы
-            elif X[i, 0] > 50:
-                y.append('flexibility')  # Гибкость для старшего возраста
-            else:
-                y.append('endurance')    # Выносливость для молодых
-        
-        # Кодируем цели
-        from sklearn.preprocessing import LabelEncoder
-        le = LabelEncoder()
-        y_encoded = le.fit_transform(y)
-        
-        # Масштабируем признаки
-        self.scaler = StandardScaler()
-        X_scaled = self.scaler.fit_transform(X)
-        
-        # Обучаем модель
-        self.model = RandomForestClassifier(n_estimators=100, random_state=42)
-        self.model.fit(X_scaled, y_encoded)
-        
-        # Сохраняем модель и скейлер
-        joblib.dump(self.model, os.path.join(self.data_dir, 'training_recommender.pkl'))
-        joblib.dump(self.scaler, os.path.join(self.data_dir, 'scaler.pkl'))
-        joblib.dump(le, os.path.join(self.data_dir, 'label_encoder.pkl'))
+        try:
+            # Создаем синтетические данные для обучения
+            np.random.seed(42)
+            n_samples = 1000
+            
+            # Признаки: возраст, вес, рост, пол (0-жен,1-муж)
+            X = np.zeros((n_samples, 4))
+            X[:, 0] = np.random.randint(18, 65, n_samples)  # возраст
+            X[:, 1] = np.random.normal(70, 15, n_samples)   # вес
+            X[:, 2] = np.random.normal(170, 10, n_samples)  # рост
+            X[:, 3] = np.random.randint(0, 2, n_samples)    # пол
+            
+            # Рассчитываем ИМТ
+            bmi = X[:, 1] / ((X[:, 2] / 100) ** 2)
+            
+            # Цели на основе ИМТ и других факторов
+            y = []
+            for i in range(n_samples):
+                if bmi[i] > 25:
+                    y.append('weight_loss')  # Похудение
+                elif bmi[i] < 18.5:
+                    y.append('muscle_gain')  # Набор массы
+                elif X[i, 0] > 50:
+                    y.append('flexibility')  # Гибкость для старшего возраста
+                elif X[i, 0] < 30 and X[i, 3] == 1:  # Молодые мужчины
+                    y.append('muscle_gain')
+                else:
+                    y.append('endurance')    # Выносливость
+            
+            # Кодируем цели
+            le = LabelEncoder()
+            y_encoded = le.fit_transform(y)
+            
+            # Масштабируем признаки
+            self.scaler = StandardScaler()
+            X_scaled = self.scaler.fit_transform(X)
+            
+            # Обучаем модель
+            self.model = RandomForestClassifier(n_estimators=100, random_state=42)
+            self.model.fit(X_scaled, y_encoded)
+            
+            # Сохраняем модель и скейлер
+            joblib.dump(self.model, os.path.join(self.data_dir, 'training_recommender.pkl'))
+            joblib.dump(self.scaler, os.path.join(self.data_dir, 'scaler.pkl'))
+            joblib.dump(le, os.path.join(self.data_dir, 'label_encoder.pkl'))
+            return True
+        except Exception as e:
+            st.error(f"Ошибка при обучении модели: {e}")
+            return False
     
     def recommend_programs_based_on_profile(self, user_profile):
         """Рекомендует программы тренировок на основе профиля пользователя"""
-        personal_info = user_profile.get('personal_info', {})
-        goals = user_profile.get('goals', {})
-        preferred_activities = user_profile.get('preferred_activities', [])
-        
-        # Извлекаем данные для ML модели
-        age = personal_info.get('age', 30)
-        weight = personal_info.get('weight', 70)
-        height = personal_info.get('height', 170)
-        gender = 0 if personal_info.get('gender') == 'Женский' else 1
-        primary_goal = goals.get('primary_goal', 'weight_loss')
-        
-        # Подготавливаем признаки для модели
-        X = np.array([[age, weight, height, gender]])
-        X_scaled = self.scaler.transform(X)
-        
-        # Предсказываем цель
-        le = joblib.load(os.path.join(self.data_dir, 'label_encoder.pkl'))
-        predicted_goal_encoded = self.model.predict(X_scaled)[0]
-        predicted_goal = le.inverse_transform([predicted_goal_encoded])[0]
-        
-        # Используем либо выбранную пользователем цель, либо предсказанную
-        final_goal = primary_goal if primary_goal in self.goals else predicted_goal
-        
-        # Получаем программы для цели
-        recommended_programs = self.training_programs.get(final_goal, [])
-        
-        # Фильтруем по предпочитаемым активностям
-        if preferred_activities:
-            filtered_programs = []
-            for program in recommended_programs:
-                program_activities = program.get('activities', [])
-                # Проверяем, есть ли пересечение с предпочитаемыми активностями
-                if any(activity in preferred_activities for activity in program_activities):
-                    filtered_programs.append(program)
+        try:
+            personal_info = user_profile.get('personal_info', {})
+            goals = user_profile.get('goals', {})
+            preferred_activities = user_profile.get('preferred_activities', [])
             
-            if filtered_programs:
-                return filtered_programs[:3]  # Возвращаем до 3 программ
-        
-        return recommended_programs[:3]
+            # Извлекаем данные для ML модели
+            age = personal_info.get('age', 30)
+            weight = personal_info.get('weight', 70)
+            height = personal_info.get('height', 170)
+            gender = 0 if personal_info.get('gender') == 'Женский' else 1
+            primary_goal = goals.get('primary_goal', 'weight_loss')
+            
+            # Подготавливаем признаки для модели (4 признака как при обучении)
+            X = np.array([[age, weight, height, gender]])
+            
+            # Проверяем, есть ли модель
+            if not hasattr(self, 'model') or self.model is None:
+                # Возвращаем программы по выбранной цели
+                final_goal = primary_goal if primary_goal in self.training_programs else 'weight_loss'
+                return self.training_programs.get(final_goal, [])[:3]
+            
+            # Масштабируем признаки
+            X_scaled = self.scaler.transform(X)
+            
+            # Предсказываем цель
+            le_path = os.path.join(self.data_dir, 'label_encoder.pkl')
+            if os.path.exists(le_path):
+                le = joblib.load(le_path)
+                predicted_goal_encoded = self.model.predict(X_scaled)[0]
+                predicted_goal = le.inverse_transform([predicted_goal_encoded])[0]
+            else:
+                predicted_goal = primary_goal
+            
+            # Используем либо выбранную пользователем цель, либо предсказанную
+            final_goal = primary_goal if primary_goal in self.goals else predicted_goal
+            
+            # Получаем программы для цели
+            recommended_programs = self.training_programs.get(final_goal, [])
+            
+            # Фильтруем по предпочитаемым активностям
+            if preferred_activities and recommended_programs:
+                filtered_programs = []
+                for program in recommended_programs:
+                    program_activities = program.get('activities', [])
+                    # Проверяем, есть ли пересечение с предпочитаемыми активностями
+                    if any(activity in preferred_activities for activity in program_activities):
+                        filtered_programs.append(program)
+                
+                if filtered_programs:
+                    return filtered_programs[:3]  # Возвращаем до 3 программ
+            
+            return recommended_programs[:3]
+            
+        except Exception as e:
+            # В случае ошибки возвращаем программы по умолчанию
+            st.warning(f"Используются рекомендации по умолчанию")
+            primary_goal = user_profile.get('goals', {}).get('primary_goal', 'weight_loss')
+            return self.training_programs.get(primary_goal, self.training_programs['weight_loss'])[:3]
     
     def calculate_calories_needed(self, user_profile):
         """Рассчитывает суточную потребность в калориях"""
@@ -433,13 +486,13 @@ class FitnessAssistant:
         else:
             bmr = 10 * weight + 6.25 * height - 5 * age - 161
         
-       # Коэффициент активности
+        # Коэффициент активности
         activity_multipliers = {
             'sedentary': 1.2,      # Сидячий образ жизни
             'light': 1.375,        # Легкая активность 1-3 раза в неделю
             'moderate': 1.55,      # Умеренная активность 3-5 раз в неделю
             'active': 1.725,       # Высокая активность 6-7 раз в неделю
-            'very_active': 1.9,     # Очень высокая активность
+            'very_active': 1.9,    # Очень высокая активность
         }
         
         tdee = bmr * activity_multipliers.get(activity_level, 1.2)
@@ -531,6 +584,7 @@ class FitnessAssistant:
                 json.dump(profile, f, indent=2)
             return True
         except Exception as e:
+            st.error(f"Ошибка сохранения профиля: {e}")
             return False
     
     def load_user_profile(self, username):
@@ -539,7 +593,13 @@ class FitnessAssistant:
             filename = self.get_user_profile_filename(username)
             if os.path.exists(filename):
                 with open(filename, 'r') as f:
-                    return json.load(f)
+                    profile = json.load(f)
+                # Проверяем структуру профиля
+                if 'questionnaire_completed' not in profile:
+                    profile['questionnaire_completed'] = False
+                if 'preferred_activities' not in profile:
+                    profile['preferred_activities'] = []
+                return profile
             else:
                 return {
                     'username': username,
@@ -782,7 +842,8 @@ if not st.session_state.authenticated:
             with col1:
                 login_submitted = st.form_submit_button("Войти", use_container_width=True)
             with col2:
-                if st.form_submit_button("Регистрация", use_container_width=True):
+                register_clicked = st.form_submit_button("Регистрация", use_container_width=True)
+                if register_clicked:
                     st.session_state.show_login = False
                     st.session_state.show_registration = True
                     st.rerun()
@@ -815,7 +876,8 @@ if not st.session_state.authenticated:
             with col1:
                 reg_submitted = st.form_submit_button("Зарегистрироваться", use_container_width=True)
             with col2:
-                if st.form_submit_button("Назад к входу", use_container_width=True):
+                back_clicked = st.form_submit_button("Назад к входу", use_container_width=True)
+                if back_clicked:
                     st.session_state.show_login = True
                     st.session_state.show_registration = False
                     st.rerun()
@@ -844,19 +906,19 @@ elif st.session_state.show_questionnaire:
         
         col1, col2 = st.columns(2)
         with col1:
-            age = st.number_input("Возраст:", min_value=10, max_value=100, value=25)
-            height = st.number_input("Рост (см):", min_value=100, max_value=250, value=170)
+            age = st.number_input("Возраст:", min_value=10, max_value=100, value=25, key="q_age")
+            height = st.number_input("Рост (см):", min_value=100, max_value=250, value=170, key="q_height")
         with col2:
-            weight = st.number_input("Текущий вес (кг):", min_value=30, max_value=200, value=70)
-            gender = st.selectbox("Пол:", ["Женский", "Мужской"])
+            weight = st.number_input("Текущий вес (кг):", min_value=30, max_value=200, value=70, key="q_weight")
+            gender = st.selectbox("Пол:", ["Женский", "Мужской"], key="q_gender")
         
         st.subheader("🎯 Ваши цели")
         
         primary_goal = st.selectbox("Основная цель:", 
                                   ["Похудение", "Набор мышечной массы", "Улучшение выносливости", 
-                                   "Развитие гибкости", "Общее оздоровление"])
+                                   "Развитие гибкости", "Общее оздоровление"], key="q_goal")
         
-        target_weight = st.number_input("Желаемый вес (кг):", min_value=30, max_value=200, value=65)
+        target_weight = st.number_input("Желаемый вес (кг):", min_value=30, max_value=200, value=65, key="q_target_weight")
         
         st.subheader("🏋️‍♀️ Предпочитаемые виды активности")
         st.write("Выберите виды тренировок, которые вам нравятся:")
@@ -869,7 +931,8 @@ elif st.session_state.show_questionnaire:
             "Выберите предпочитаемые активности:",
             options=range(len(activity_names)),
             format_func=lambda x: f"{app.activity_types[activity_options[x]]['icon']} {activity_names[x]}",
-            default=[0, 1, 2]  # По умолчанию йога, пилатес, круговые
+            default=[0, 1, 2],  # По умолчанию йога, пилатес, круговые
+            key="q_activities"
         )
         
         preferred_activities = [activity_options[i] for i in selected_indices]
@@ -878,7 +941,8 @@ elif st.session_state.show_questionnaire:
         activity_level = st.select_slider(
             "Как часто вы тренируетесь?",
             options=["Сидячий", "Легкая активность", "Умеренная", "Высокая", "Очень высокая"],
-            value="Умеренная"
+            value="Умеренная",
+            key="q_activity_level"
         )
         
         level_mapping = {
@@ -889,7 +953,9 @@ elif st.session_state.show_questionnaire:
             "Очень высокая": "very_active"
         }
         
-        if st.form_submit_button("✅ Сохранить анкету", use_container_width=True):
+        submitted = st.form_submit_button("✅ Сохранить анкету", use_container_width=True)
+        
+        if submitted:
             personal_info = {
                 'age': age,
                 'height': height,
@@ -959,7 +1025,8 @@ else:
         if stats:
             st.metric("Всего тренировок", stats['total_workouts'])
             st.metric("Общее время", f"{int(stats['total_minutes'])} мин")
-            st.metric("Серия", f"{stats.get('workout_streak', 0)} дней")
+            if stats.get('workout_streak', 0) > 0:
+                st.metric("Серия", f"{stats.get('workout_streak', 0)} дней")
         
         st.markdown("---")
         if st.button("✏️ Редактировать анкету"):
@@ -1123,36 +1190,39 @@ else:
             
             if preferred_activities:
                 workout_options = []
+                workout_mapping = {}
                 for activity_id in preferred_activities:
                     activity = app.activity_types.get(activity_id, {})
-                    workout_options.append(f"{activity.get('icon', '🏃')} {activity.get('name', activity_id)}")
+                    display_name = f"{activity.get('icon', '🏃')} {activity.get('name', activity_id)}"
+                    workout_options.append(display_name)
+                    workout_mapping[display_name] = activity.get('name', activity_id)
                 
                 workout_type = st.selectbox(
                     "Вид тренировки:",
-                    options=workout_options
+                    options=workout_options,
+                    key="workout_type_select"
                 )
+                workout_type_clean = workout_mapping[workout_type]
             else:
-                workout_type = st.text_input("Вид тренировки:", placeholder="Например: Йога, Бег, Пилатес...")
+                workout_type = st.text_input("Вид тренировки:", placeholder="Например: Йога, Бег, Пилатес...", key="workout_type_text")
+                workout_type_clean = workout_type
             
             col1, col2 = st.columns(2)
             with col1:
-                duration = st.number_input("Длительность (минут):", min_value=5, max_value=180, value=45)
+                duration = st.number_input("Длительность (минут):", min_value=5, max_value=180, value=45, key="workout_duration")
             with col2:
                 intensity = st.select_slider(
                     "Интенсивность:",
                     options=["Очень легкая", "Легкая", "Средняя", "Высокая", "Очень высокая"],
-                    value="Средняя"
+                    value="Средняя",
+                    key="workout_intensity"
                 )
             
-            notes = st.text_area("Заметки:", placeholder="Как прошла тренировка? Что понравилось?")
+            notes = st.text_area("Заметки:", placeholder="Как прошла тренировка? Что понравилось?", key="workout_notes")
             
-            if st.form_submit_button("💾 Сохранить тренировку", use_container_width=True):
-                # Извлекаем тип тренировки без иконки
-                if preferred_activities:
-                    workout_type_clean = workout_type.split(" ", 1)[1]
-                else:
-                    workout_type_clean = workout_type
-                
+            submit_button = st.form_submit_button("💾 Сохранить тренировку", use_container_width=True)
+            
+            if submit_button:
                 success, message = app.add_workout(
                     st.session_state.current_user, 
                     workout_type_clean, 
@@ -1183,7 +1253,10 @@ else:
             with col2:
                 st.metric("Общее время", f"{int(stats['total_minutes'])} мин")
             with col3:
-                st.metric("Средняя длительность", f"{stats['avg_duration']:.0f} мин")
+                if not pd.isna(stats['avg_duration']):
+                    st.metric("Средняя длительность", f"{stats['avg_duration']:.0f} мин")
+                else:
+                    st.metric("Средняя длительность", "0 мин")
             with col4:
                 st.metric("Текущая серия", f"{stats.get('workout_streak', 0)} дней")
         
@@ -1242,9 +1315,10 @@ else:
             st.success(f"🎉 У вас {len(unlocked)} из {total} достижений!")
             
             # Прогресс-бар
-            progress = len(unlocked) / total * 100
-            st.progress(int(progress))
-            st.caption(f"Прогресс: {len(unlocked)}/{total} ({progress:.1f}%)")
+            if total > 0:
+                progress = len(unlocked) / total * 100
+                st.progress(min(int(progress), 100) / 100)
+                st.caption(f"Прогресс: {len(unlocked)}/{total} ({progress:.1f}%)")
             
             # Отображение достижений
             st.markdown("### 🏆 Полученные достижения")
@@ -1265,9 +1339,9 @@ else:
                 st.markdown("### 🎯 Ближайшие цели")
                 goals_data = []
                 
-                if stats['total_workouts'] < 10:
+                if stats.get('total_workouts', 0) < 10:
                     goals_data.append(["🔥 Посвящение", f"{stats['total_workouts']}/10", "10 тренировок"])
-                elif stats['total_workouts'] < 30:
+                elif stats.get('total_workouts', 0) < 30:
                     goals_data.append(["📅 Регулярность", f"{stats['total_workouts']}/30", "30 тренировок"])
                 
                 if stats.get('total_minutes', 0) < 1000:
@@ -1314,23 +1388,45 @@ else:
                 
                 col1, col2 = st.columns(2)
                 with col1:
-                    age = st.number_input("Возраст:", min_value=10, max_value=100, value=personal_info.get('age', 25))
-                    height = st.number_input("Рост (см):", min_value=100, max_value=250, value=personal_info.get('height', 170))
+                    age = st.number_input("Возраст:", min_value=10, max_value=100, 
+                                         value=personal_info.get('age', 25), key="profile_age")
+                    height = st.number_input("Рост (см):", min_value=100, max_value=250, 
+                                           value=personal_info.get('height', 170), key="profile_height")
                 with col2:
-                    weight = st.number_input("Текущий вес (кг):", min_value=30, max_value=200, value=personal_info.get('weight', 70))
-                    gender = st.selectbox("Пол:", ["Женский", "Мужской"], index=0 if personal_info.get('gender') == 'Женский' else 1)
+                    weight = st.number_input("Текущий вес (кг):", min_value=30, max_value=200, 
+                                           value=personal_info.get('weight', 70), key="profile_weight")
+                    gender = st.selectbox("Пол:", ["Женский", "Мужской"], 
+                                         index=0 if personal_info.get('gender') == 'Женский' else 1, 
+                                         key="profile_gender")
                 
                 st.subheader("🎯 Цели")
-                goal_mapping_reverse = {v['name']: k for k, v in app.goals.items()}
-                current_goal_name = app.goals.get(goals.get('primary_goal', 'weight_loss'), {}).get('name', 'Похудение')
                 
-                primary_goal = st.selectbox(
+                # Получаем текущую цель
+                current_goal_key = goals.get('primary_goal', 'weight_loss')
+                
+                # Создаем список для selectbox
+                goal_options = list(app.goals.keys())
+                goal_display_names = []
+                for key in goal_options:
+                    goal_info = app.goals[key]
+                    goal_display_names.append(f"{goal_info['icon']} {goal_info['name']}")
+                
+                # Находим индекс текущей цели
+                current_index = goal_options.index(current_goal_key) if current_goal_key in goal_options else 0
+                
+                selected_goal_display = st.selectbox(
                     "Основная цель:",
-                    [app.goals[g]['name'] for g in app.goals],
-                    index=list(app.goals.keys()).index(goals.get('primary_goal', 'weight_loss'))
+                    options=goal_display_names,
+                    index=current_index,
+                    key="profile_goal"
                 )
                 
-                target_weight = st.number_input("Желаемый вес (кг):", min_value=30, max_value=200, value=goals.get('target_weight', 65))
+                # Получаем ключ цели из выбранного отображаемого имени
+                selected_goal_index = goal_display_names.index(selected_goal_display)
+                primary_goal_key = goal_options[selected_goal_index]
+                
+                target_weight = st.number_input("Желаемый вес (кг):", min_value=30, max_value=200, 
+                                              value=goals.get('target_weight', 65), key="profile_target_weight")
                 
                 st.subheader("🏋️‍♀️ Предпочитаемые активности")
                 activity_options = list(app.activity_types.keys())
@@ -1345,12 +1441,16 @@ else:
                     "Выберите предпочитаемые активности:",
                     options=range(len(activity_names)),
                     format_func=lambda x: f"{app.activity_types[activity_options[x]]['icon']} {activity_names[x]}",
-                    default=current_indices
+                    default=current_indices,
+                    key="profile_activities"
                 )
                 
                 preferred_activities = [activity_options[i] for i in selected_indices]
                 
-                if st.form_submit_button("💾 Обновить профиль", use_container_width=True):
+                # Кнопка отправки формы ДОЛЖНА быть внутри формы
+                submit_button = st.form_submit_button("💾 Обновить профиль", use_container_width=True)
+                
+                if submit_button:
                     personal_info = {
                         'age': age,
                         'height': height,
@@ -1360,7 +1460,7 @@ else:
                     }
                     
                     goals = {
-                        'primary_goal': goal_mapping_reverse[primary_goal],
+                        'primary_goal': primary_goal_key,
                         'target_weight': target_weight
                     }
                     
@@ -1378,4 +1478,3 @@ st.markdown("""
     <p>Ваш персональный тренер для любого вида фитнеса</p>
 </div>
 """, unsafe_allow_html=True)
-
