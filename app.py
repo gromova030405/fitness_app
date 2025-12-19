@@ -19,97 +19,223 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS стили
+# Новый CSS стиль как на изображении
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 3.5rem;
-        color: #1f77b4;
-        text-align: center;
-        margin-bottom: 2rem;
-        font-weight: bold;
+    /* Основные стили как на картинке */
+    :root {
+        --primary: #2ecc71;
+        --secondary: #3498db;
+        --accent: #9b59b6;
+        --dark: #1a1a2e;
+        --dark-light: #2d2d44;
+        --text: #ecf0f1;
+        --text-secondary: #bdc3c7;
+        --card-bg: rgba(45, 45, 68, 0.7);
+        --border-radius: 16px;
     }
-    .sub-header {
-        font-size: 1.8rem;
-        color: #2e86ab;
+    
+    .stApp {
+        background-color: var(--dark);
+        color: var(--text);
+        background-image: 
+            radial-gradient(circle at 10% 20%, rgba(46, 204, 113, 0.1) 0%, transparent 20%),
+            radial-gradient(circle at 90% 80%, rgba(155, 89, 182, 0.1) 0%, transparent 20%);
+    }
+    
+    /* Заголовки */
+    .main-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin-bottom: 1rem;
+    }
+    
+    .section-header {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--text);
         margin: 1.5rem 0 1rem 0;
-        border-bottom: 2px solid #f0f2f6;
-        padding-bottom: 0.5rem;
+        border-left: 4px solid var(--primary);
+        padding-left: 12px;
     }
-    .user-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
-    }
-    .training-card {
-        border: 2px solid #4CAF50;
-        border-radius: 10px;
+    
+    /* Карточки как на изображении */
+    .modern-card {
+        background-color: var(--card-bg);
+        border-radius: var(--border-radius);
         padding: 1.5rem;
-        margin: 1rem 0;
-        background: #f9fff9;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        transition: transform 0.3s;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        margin-bottom: 1rem;
     }
-    .training-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 15px rgba(0,0,0,0.2);
-    }
-    .achievement-card {
-        background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
-        color: white;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
+    
+    .metric-card {
+        background: linear-gradient(135deg, var(--card-bg) 0%, rgba(52, 152, 219, 0.1) 100%);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
         text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .progress-card {
-        background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
+    
+    .activity-card {
+        background: linear-gradient(135deg, var(--primary), #27ae60);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        color: white;
+        box-shadow: 0 8px 20px rgba(46, 204, 113, 0.2);
     }
-    .sport-icon {
+    
+    .nutrition-card {
+        background: linear-gradient(135deg, #34495e, #2c3e50);
+        border-radius: var(--border-radius);
+        padding: 1.2rem;
+        color: white;
+    }
+    
+    /* Крупные цифры */
+    .big-number {
+        font-size: 3rem;
+        font-weight: 700;
+        background: linear-gradient(to right, var(--primary), var(--secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        line-height: 1;
+    }
+    
+    .medium-number {
         font-size: 2rem;
-        margin-bottom: 0.5rem;
-        display: block;
-        text-align: center;
+        font-weight: 700;
+        color: var(--text);
     }
-    .goal-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        margin: 0.25rem;
+    
+    /* Прогресс-бары */
+    .progress-container {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        height: 8px;
+        margin: 10px 0;
+        overflow: hidden;
     }
-    .weight-loss { background: #ff6b6b; color: white; }
-    .muscle-gain { background: #4ecdc4; color: white; }
-    .endurance { background: #45b7d1; color: white; }
-    .flexibility { background: #96ceb4; color: white; }
-    .health { background: #feca57; color: white; }
-    .level-beginner { background: #4CAF50; color: white; }
-    .level-intermediate { background: #2196F3; color: white; }
-    .level-advanced { background: #FF9800; color: white; }
-    .level-pro { background: #f44336; color: white; }
-    .exercise-item {
-        background: #f8f9fa;
-        padding: 1rem;
-        margin: 0.5rem 0;
-        border-radius: 8px;
-        border-left: 4px solid #4CAF50;
+    
+    .progress-fill {
+        height: 100%;
+        border-radius: 10px;
     }
-    .video-link {
-        display: inline-block;
-        background: #ff6b6b;
+    
+    .progress-protein { background-color: var(--primary); width: 78%; }
+    .progress-carbs { background-color: var(--secondary); width: 65%; }
+    .progress-fat { background-color: var(--accent); width: 32%; }
+    
+    /* Кнопки */
+    .stButton > button {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
         color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 5px;
-        text-decoration: none;
-        margin: 0.5rem 0;
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
     }
-    .video-link:hover {
-        background: #ff5252;
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(46, 204, 113, 0.3);
+    }
+    
+    /* Пользовательская карточка */
+    .user-widget {
+        background: linear-gradient(135deg, var(--dark-light), var(--dark));
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    /* Время и метки */
+    .time-label {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+    }
+    
+    .metric-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+    }
+    
+    /* Иконки */
+    .icon-large {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Анимации */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.5s ease-out forwards;
+    }
+    
+    /* Сайдбар */
+    .css-1d391kg {
+        background-color: rgba(26, 26, 46, 0.9);
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Ползунки и инпуты */
+    .stSlider > div > div > div {
+        background: var(--primary);
+    }
+    
+    /* Таблицы */
+    .dataframe {
+        background-color: var(--card-bg) !important;
+        color: var(--text) !important;
+    }
+    
+    .dataframe th {
+        background-color: var(--dark-light) !important;
+        color: var(--text) !important;
+    }
+    
+    .dataframe td {
+        color: var(--text) !important;
+    }
+    
+    /* Экспандеры */
+    .streamlit-expanderHeader {
+        background-color: var(--dark-light) !important;
+        color: var(--text) !important;
+        border-radius: 10px !important;
+    }
+    
+    /* Текстовые поля */
+    .stTextInput > div > div > input {
+        background-color: var(--dark-light);
+        color: var(--text);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    /* Селект боксы */
+    .stSelectbox > div > div > div {
+        background-color: var(--dark-light);
+        color: var(--text);
+    }
+    
+    /* Убираем стандартные отступы */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 95%;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -391,7 +517,7 @@ class FitnessAssistant:
                     'session_duration': 30,
                     'activities': ['yoga', 'stretching'],
                     'schedule': [
-                        'День 1: Утренняя йога 20 мин',
+                        'День 1: Утренная йога 20 мин',
                         'День 2: Вечерняя растяжка 30 мин',
                         'День 3: Йога для спины 25 мин',
                         'День 4: Отдых',
@@ -399,7 +525,7 @@ class FitnessAssistant:
                     ],
                     'workouts': {
                         'day1': {
-                            'title': 'Утренняя йога',
+                            'title': 'Утренная йога',
                             'warmup': '5 минут дыхательных упражнений',
                             'exercises': [
                                 {'type': 'yoga', 'name': 'Поза горы', 'duration': '2 минуты'},
@@ -1048,25 +1174,34 @@ initialize_session_state()
 
 # Страница входа/регистрации
 if not st.session_state.authenticated:
-    st.markdown('<h1 class="main-header">🧘 Фитнес Помощник</h1>', unsafe_allow_html=True)
+    # Стилизованный заголовок
+    col_header = st.columns([3, 1])
+    with col_header[0]:
+        st.markdown('<h1 class="main-title">💪 Фитнес Помощник</h1>', unsafe_allow_html=True)
+        st.markdown('<p style="font-size: 1.2rem; color: #bdc3c7;">Персональный тренер для любого вида фитнеса</p>', unsafe_allow_html=True)
+    
+    # Карточка входа
+    st.markdown('<div class="modern-card">', unsafe_allow_html=True)
     
     if st.session_state.show_login:
-        # Форма входа
+        # Форма входа в новый дизайне
         with st.form("login_form"):
-            st.subheader("🔐 Вход в систему")
+            cols = st.columns([2, 1, 2])
+            with cols[0]:
+                st.markdown('<h3>🔐 Вход в систему</h3>', unsafe_allow_html=True)
+            
+            with cols[2]:
+                if st.form_submit_button("📝 Регистрация", use_container_width=True):
+                    st.session_state.show_login = False
+                    st.session_state.show_registration = True
+                    st.rerun()
             
             login_username = st.text_input("Логин:", placeholder="Введите ваш логин")
             login_password = st.text_input("Пароль:", type="password", placeholder="Введите ваш пароль")
             
-            col1, col2 = st.columns(2)
-            with col1:
+            col_btn = st.columns(2)
+            with col_btn[0]:
                 login_submitted = st.form_submit_button("Войти", use_container_width=True)
-            with col2:
-                register_clicked = st.form_submit_button("Регистрация", use_container_width=True)
-                if register_clicked:
-                    st.session_state.show_login = False
-                    st.session_state.show_registration = True
-                    st.rerun()
             
             if login_submitted and login_username and login_password:
                 success, message = app.login_user(login_username, login_password)
@@ -1084,20 +1219,19 @@ if not st.session_state.authenticated:
                     st.error(f"❌ {message}")
     
     elif st.session_state.show_registration:
-        # Форма регистрации
+        # Форма регистрации в новом дизайне
         with st.form("register_form"):
-            st.subheader("📝 Регистрация")
+            st.markdown('<h3>📝 Регистрация</h3>', unsafe_allow_html=True)
             
             reg_username = st.text_input("Логин:", placeholder="Придумайте логин")
             reg_password = st.text_input("Пароль:", type="password", placeholder="Придумайте пароль")
             reg_confirm = st.text_input("Подтвердите пароль:", type="password", placeholder="Повторите пароль")
             
-            col1, col2 = st.columns(2)
-            with col1:
+            col_btn = st.columns(2)
+            with col_btn[0]:
                 reg_submitted = st.form_submit_button("Зарегистрироваться", use_container_width=True)
-            with col2:
-                back_clicked = st.form_submit_button("Назад к входу", use_container_width=True)
-                if back_clicked:
+            with col_btn[1]:
+                if st.form_submit_button("← Назад к входу", use_container_width=True):
                     st.session_state.show_login = True
                     st.session_state.show_registration = False
                     st.rerun()
@@ -1116,13 +1250,16 @@ if not st.session_state.authenticated:
                         st.rerun()
                     else:
                         st.error(f"❌ {message}")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # Анкета после регистрации/первого входа
 elif st.session_state.show_questionnaire:
-    st.markdown('<h1 class="main-header">📝 Давайте познакомимся!</h1>', unsafe_allow_html=True)
+    st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+    st.markdown('<h2 class="main-title">📝 Давайте познакомимся!</h2>', unsafe_allow_html=True)
     
     with st.form("questionnaire_form"):
-        st.subheader("📊 Личные данные")
+        st.markdown('<h3 class="section-header">📊 Личные данные</h3>', unsafe_allow_html=True)
         
         col1, col2 = st.columns(2)
         with col1:
@@ -1132,7 +1269,7 @@ elif st.session_state.show_questionnaire:
             weight = st.number_input("Текущий вес (кг):", min_value=30, max_value=200, value=70, key="q_weight")
             gender = st.selectbox("Пол:", ["Женский", "Мужской"], key="q_gender")
         
-        st.subheader("🎯 Ваши цели")
+        st.markdown('<h3 class="section-header">🎯 Ваши цели</h3>', unsafe_allow_html=True)
         
         primary_goal = st.selectbox("Основная цель:", 
                                   ["Похудение", "Набор мышечной массы", "Улучшение выносливости", 
@@ -1140,8 +1277,7 @@ elif st.session_state.show_questionnaire:
         
         target_weight = st.number_input("Желаемый вес (кг):", min_value=30, max_value=200, value=65, key="q_target_weight")
         
-        st.subheader("🏋️‍♀️ Предпочитаемые виды активности")
-        st.write("Выберите виды тренировок, которые вам нравятся:")
+        st.markdown('<h3 class="section-header">🏋️‍♀️ Предпочитаемые виды активности</h3>', unsafe_allow_html=True)
         
         # Мультивыбор активностей
         activity_options = list(app.activity_types.keys())
@@ -1151,13 +1287,13 @@ elif st.session_state.show_questionnaire:
             "Выберите предпочитаемые активности:",
             options=range(len(activity_names)),
             format_func=lambda x: f"{app.activity_types[activity_options[x]]['icon']} {activity_names[x]}",
-            default=[0, 1, 2],  # По умолчанию йога, пилатес, круговые
+            default=[0, 1, 2],
             key="q_activities"
         )
         
         preferred_activities = [activity_options[i] for i in selected_indices]
         
-        st.subheader("📊 Уровень активности")
+        st.markdown('<h3 class="section-header">📊 Уровень активности</h3>', unsafe_allow_html=True)
         activity_level = st.select_slider(
             "Как часто вы тренируетесь?",
             options=["Сидячий", "Легкая активность", "Умеренная", "Высокая", "Очень высокая"],
@@ -1202,6 +1338,8 @@ elif st.session_state.show_questionnaire:
                 st.rerun()
             else:
                 st.error("❌ Ошибка сохранения анкеты")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 else:
     # ОСНОВНОЕ ПРИЛОЖЕНИЕ (после входа)
@@ -1209,55 +1347,33 @@ else:
     # Загрузка профиля пользователя
     user_profile = app.load_user_profile(st.session_state.current_user)
     
-    # Отображение текущего пользователя
-    st.sidebar.markdown(f'<div class="user-card">👤 {st.session_state.current_user}</div>', unsafe_allow_html=True)
-    
-    # Показываем цель пользователя
-    if user_profile.get('goals', {}).get('primary_goal'):
-        goal_info = app.goals.get(user_profile['goals']['primary_goal'], {})
-        if goal_info:
-            st.sidebar.markdown(f"""
-            <div style='text-align: center; margin: 1rem 0;'>
-                <span class='sport-icon'>{goal_info['icon']}</span>
-                <h4>{goal_info['name']}</h4>
-                <span class='goal-badge {goal_info["color"]}'>{goal_info['description']}</span>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # Показываем текущую программу
-    if user_profile.get('current_program'):
-        current_program_id = user_profile['current_program']
-        # Находим информацию о программе
-        program_info = None
-        for goal, programs in app.training_programs.items():
-            for program in programs:
-                if program['id'] == current_program_id:
-                    program_info = program
-                    break
-            if program_info:
-                break
-        
-        if program_info:
-            level_info = app.levels.get(program_info['level'], {})
-            st.sidebar.markdown(f"""
-            <div style='text-align: center; margin: 1rem 0;'>
-                <span class='sport-icon'>📋</span>
-                <h5>Текущая программа</h5>
-                <p><strong>{program_info['name']}</strong></p>
-                <span class='goal-badge {level_info.get("color", "level-beginner")}'>
-                    {level_info.get('name', 'Начальный')}
-                </span>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # Основная навигация
+    # Боковая панель в новом стиле
     with st.sidebar:
-        st.title("Навигация")
+        # Карточка пользователя
+        st.markdown('<div class="user-widget">', unsafe_allow_html=True)
+        st.markdown(f"### 👤 {st.session_state.current_user}")
+        
+        # Показываем цель пользователя
+        if user_profile.get('goals', {}).get('primary_goal'):
+            goal_info = app.goals.get(user_profile['goals']['primary_goal'], {})
+            if goal_info:
+                st.markdown(f"""
+                <div style='text-align: center; margin: 1rem 0;'>
+                    <span style='font-size: 2rem;'>{goal_info['icon']}</span>
+                    <p><strong>{goal_info['name']}</strong></p>
+                    <p style='font-size: 0.8rem; color: #bdc3c7;'>{goal_info['description']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Навигация
+        st.markdown('<h3 class="section-header">Навигация</h3>', unsafe_allow_html=True)
         
         page = st.radio(
             "Выберите раздел:",
             ["📊 Главная", "🎯 Мои программы", "➕ Добавить тренировку", "📈 Мой прогресс", "🏆 Достижения", "👤 Мой профиль"],
-            index=["📊 Главная", "🎯 Мои программы", "➕ Добавить тренировку", "📈 Мой прогресс", "🏆 Достижения", "👤 Мой профиль"].index(st.session_state.current_page)
+            index=["📊 Главная", "🎯 Мои программы", "➕ Добавить тренировку", "📈 Мой прогресс", "🏆 Достижения", "👤 Мой профиль"].index(st.session_state.current_page),
+            label_visibility="collapsed"
         )
         
         if page != st.session_state.current_page:
@@ -1265,30 +1381,50 @@ else:
             st.rerun()
         
         st.markdown("---")
-        st.markdown("### Статистика")
         
+        # Статистика
         stats = app.get_statistics(st.session_state.current_user)
         if stats:
-            st.metric("Всего тренировок", stats['total_workouts'])
-            st.metric("Общее время", f"{int(stats['total_minutes'])} мин")
-            if stats.get('workout_streak', 0) > 0:
-                st.metric("Серия", f"{stats.get('workout_streak', 0)} дней")
+            st.markdown('<h3 class="section-header">Статистика</h3>', unsafe_allow_html=True)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"<div class='metric-card'><div class='big-number'>{stats['total_workouts']}</div><div class='metric-label'>Тренировок</div></div>", unsafe_allow_html=True)
+            with col2:
+                minutes = int(stats['total_minutes'])
+                st.markdown(f"<div class='metric-card'><div class='big-number'>{minutes}</div><div class='metric-label'>Минут</div></div>", unsafe_allow_html=True)
         
         st.markdown("---")
-        if st.button("✏️ Редактировать анкету"):
+        
+        if st.button("✏️ Редактировать анкету", use_container_width=True):
             st.session_state.show_questionnaire = True
             st.rerun()
         
-        if st.button("🚪 Выйти"):
+        if st.button("🚪 Выйти", use_container_width=True):
             st.session_state.authenticated = False
             st.session_state.current_user = ""
             st.rerun()
 
     # Главная страница
     if st.session_state.current_page == "📊 Главная":
-        st.markdown(f'<h2 class="sub-header">🏠 Добро пожаловать, {st.session_state.current_user}!</h2>', unsafe_allow_html=True)
+        # Верхняя часть - приветствие и цель
+        col_top = st.columns([3, 1])
+        with col_top[0]:
+            st.markdown(f'<h2 class="main-title">Привет, {st.session_state.current_user}!</h2>', unsafe_allow_html=True)
+            st.markdown(f'<p style="color: #bdc3c7;">{datetime.now().strftime("%A, %d %B")}</p>', unsafe_allow_html=True)
+        
+        with col_top[1]:
+            if user_profile.get('goals', {}).get('primary_goal'):
+                goal_info = app.goals.get(user_profile['goals']['primary_goal'], {})
+                st.markdown(f"""
+                <div class="activity-card">
+                    <div style='font-size: 1.2rem; font-weight: bold;'>{goal_info.get('icon', '🎯')}</div>
+                    <div style='font-size: 1.1rem;'>Достигнуть цели</div>
+                </div>
+                """, unsafe_allow_html=True)
         
         if not user_profile.get('questionnaire_completed', False):
+            st.markdown('<div class="modern-card">', unsafe_allow_html=True)
             st.warning("""
             ⚠️ **Анкета не заполнена!**
             
@@ -1297,70 +1433,145 @@ else:
             if st.button("📝 Заполнить анкету", use_container_width=True):
                 st.session_state.show_questionnaire = True
                 st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
-            # Персональная информация
-            personal_info = user_profile.get('personal_info', {})
-            goals = user_profile.get('goals', {})
+            # Блок с активностью (как на картинке)
+            st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+            col_activity = st.columns([3, 1])
+            with col_activity[0]:
+                st.markdown('<h3 class="section-header">🏃 Текущая активность</h3>', unsafe_allow_html=True)
+                # Берем последнюю тренировку
+                workouts = app.get_all_workouts(st.session_state.current_user)
+                if not workouts.empty:
+                    last_workout = workouts.iloc[0]
+                    st.markdown(f"**{last_workout['workout_type']}**")
+                    st.markdown(f"<p style='color: #bdc3c7;'>{last_workout.get('notes', '')}</p>", unsafe_allow_html=True)
+                else:
+                    st.markdown("**Нет недавних тренировок**")
+                    st.markdown('<p style="color: #bdc3c7;">Добавьте первую тренировку!</p>', unsafe_allow_html=True)
             
-            col1, col2, col3 = st.columns(3)
+            with col_activity[1]:
+                if not workouts.empty:
+                    last_workout = workouts.iloc[0]
+                    duration = last_workout['duration']
+                    st.markdown(f"""
+                    <div style='text-align: center; padding: 1rem;'>
+                        <div style='font-size: 2.5rem; font-weight: bold; color: #9b59b6;'>{duration}</div>
+                        <div style='font-size: 0.9rem; color: #bdc3c7;'>минут</div>
+                        <div style='font-size: 0.8rem; color: #95a5a6; margin-top: 0.5rem;'>Сегодня {datetime.now().strftime("%H:%M")}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown("""
+                    <div style='text-align: center; padding: 1rem;'>
+                        <div style='font-size: 2.5rem; font-weight: bold; color: #9b59b6;'>0</div>
+                        <div style='font-size: 0.9rem; color: #bdc3c7;'>минут</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
             
-            with col1:
-                st.markdown('<div class="progress-card">', unsafe_allow_html=True)
-                st.metric("Текущий вес", f"{personal_info.get('weight', 0)} кг")
-                st.metric("Целевой вес", f"{goals.get('target_weight', 0)} кг")
-                st.markdown('</div>', unsafe_allow_html=True)
+            # Метрики (шаги, активность, вода, сон) - как на картинке
+            st.markdown('<h3 class="section-header">📊 Сегодняшние метрики</h3>', unsafe_allow_html=True)
             
-            with col2:
-                st.markdown('<div class="progress-card">', unsafe_allow_html=True)
-                bmi = user_profile.get('bmi', 0)
-                bmi_category = user_profile.get('bmi_category', '')
-                st.metric("ИМТ", f"{bmi}")
-                st.caption(f"Категория: {bmi_category}")
-                st.markdown('</div>', unsafe_allow_html=True)
+            col_metrics = st.columns(4)
             
-            with col3:
-                st.markdown('<div class="progress-card">', unsafe_allow_html=True)
-                calories_needed, tdee = app.calculate_calories_needed(user_profile)
-                st.metric("Калории в день", f"{calories_needed}")
-                st.caption(f"Расход: {tdee} ккал")
-                st.markdown('</div>', unsafe_allow_html=True)
+            with col_metrics[0]:
+                # Шаги (симулируем на основе тренировок)
+                step_count = workouts['duration'].sum() * 100 if not workouts.empty else 0
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="big-number">{int(step_count):,}</div>
+                    <div class="metric-label">Шаги</div>
+                    <div class="time-label">Сегодня 11:45</div>
+                </div>
+                """, unsafe_allow_html=True)
             
-            # Если у пользователя есть текущая программа
-            if user_profile.get('current_program'):
-                st.markdown("### 🏃 Текущая программа тренировок")
-                
-                current_program_id = user_profile['current_program']
-                # Находим программу
-                current_program = None
-                for goal, programs in app.training_programs.items():
-                    for program in programs:
-                        if program['id'] == current_program_id:
-                            current_program = program
-                            break
-                    if current_program:
-                        break
-                
-                if current_program:
-                    level_info = app.levels.get(current_program['level'], {})
+            with col_metrics[1]:
+                # Активность
+                activity_minutes = workouts['duration'].sum() if not workouts.empty else 0
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="medium-number">{int(activity_minutes)}</div>
+                    <div class="metric-label">Минут активности</div>
+                    <div class="time-label">Сегодня 21:00</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col_metrics[2]:
+                # Вода
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="medium-number">2.1</div>
+                    <div class="metric-label">Литров воды</div>
+                    <div class="time-label">Сегодня 9:00</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col_metrics[3]:
+                # Сон
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="medium-number">7:25</div>
+                    <div class="metric-label">Часов сна</div>
+                    <div class="time-label">Сегодня 7:00</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Питание - адаптированное под новый дизайн
+            st.markdown('<h3 class="section-header">🍽️ Питание сегодня</h3>', unsafe_allow_html=True)
+            
+            col_nutrition = st.columns(3)
+            
+            meals = [
+                {"name": "Завтрак", "calories": "420 ккал", "items": ["Овсянка с ягодами", "Омлет", "Кофе"]},
+                {"name": "Обед", "calories": "680 ккал", "items": ["Куриная грудка", "Гречка", "Салат"]},
+                {"name": "Ужин", "calories": "520 ккал", "items": ["Лосось", "Брокколи", "Авокадо"]}
+            ]
+            
+            for i, meal in enumerate(meals):
+                with col_nutrition[i]:
+                    st.markdown(f"""
+                    <div class="nutrition-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4>{meal['name']}</h4>
+                            <span style="color: #2ecc71; font-weight: bold;">{meal['calories']}</span>
+                        </div>
+                        <ul style="padding-left: 1.2rem; margin: 0;">
+                    """, unsafe_allow_html=True)
                     
-                    col1, col2 = st.columns([3, 1])
-                    with col1:
-                        st.markdown(f"#### {current_program['name']}")
-                        st.markdown(f"**Уровень:** <span class='goal-badge {level_info.get("color", "level-beginner")}'>{level_info.get('name', 'Начальный')}</span>", unsafe_allow_html=True)
-                        st.markdown(f"**Продолжительность:** {current_program['duration_weeks']} недель")
-                        st.markdown(f"**Тренировок в неделю:** {current_program['sessions_per_week']}")
+                    for item in meal['items']:
+                        st.markdown(f"<li>{item}</li>", unsafe_allow_html=True)
                     
-                    with col2:
-                        if st.button("📋 Показать тренировки", use_container_width=True):
-                            st.session_state.show_program_details = current_program_id
-                            st.rerun()
-                    
-                    st.markdown("**Расписание:**")
-                    for session in current_program.get('schedule', []):
-                        st.markdown(f"- {session}")
+                    st.markdown("</ul></div>", unsafe_allow_html=True)
             
-            # Рекомендуемые программы на основе ML
-            st.markdown("### 🎯 Персональные рекомендации")
+            # Макронутриенты
+            st.markdown('<h3 class="section-header">⚖️ Макронутриенты</h3>', unsafe_allow_html=True)
+            
+            col_macros = st.columns(3)
+            
+            macros = [
+                {"name": "Белки", "value": "125г", "target": "150г", "progress_class": "progress-protein"},
+                {"name": "Углеводы", "value": "210г", "target": "230г", "progress_class": "progress-carbs"},
+                {"name": "Жиры", "value": "55г", "target": "70г", "progress_class": "progress-fat"}
+            ]
+            
+            for i, macro in enumerate(macros):
+                with col_macros[i]:
+                    st.markdown(f"""
+                    <div class="modern-card">
+                        <h4>{macro['name']}</h4>
+                        <div style="display: flex; justify-content: space-between; margin: 0.5rem 0;">
+                            <span>{macro['value']}</span>
+                            <span style="color: #bdc3c7;">из {macro['target']}</span>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-fill {macro['progress_class']}"></div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            # Рекомендуемые программы
+            st.markdown('<h3 class="section-header">🎯 Персональные рекомендации</h3>', unsafe_allow_html=True)
             
             recommended_programs = app.recommend_programs_based_on_profile(user_profile)
             
@@ -1369,77 +1580,76 @@ else:
                     with st.container():
                         level_info = app.levels.get(program['level'], {})
                         
-                        # Получаем информацию об активностях
+                        # Получаем иконки активностей
                         activity_icons = ""
                         for activity_id in program.get('activities', []):
                             activity = app.activity_types.get(activity_id, {})
                             activity_icons += f"{activity.get('icon', '🏃')} "
                         
                         st.markdown(f"""
-                        <div class="training-card">
-                            <h3>{activity_icons} {program['name']}</h3>
-                            <p><strong>Уровень:</strong> <span class='goal-badge {level_info.get("color", "level-beginner")}'>{level_info.get('name', 'Начальный')}</span> | <strong>Продолжительность:</strong> {program['duration_weeks']} недель</p>
-                            <p>{program['description']}</p>
-                            <p><strong>Расписание:</strong></p>
-                            <ul>
+                        <div class="modern-card">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div>
+                                    <h4>{activity_icons} {program['name']}</h4>
+                                    <p style="color: #bdc3c7; margin: 0.5rem 0;">{program['description']}</p>
+                                    <p><strong>Продолжительность:</strong> {program['duration_weeks']} недель</p>
+                                    <p><strong>Тренировок в неделю:</strong> {program['sessions_per_week']}</p>
+                                </div>
+                                <div style="text-align: right;">
+                                    <span style="background: #3498db; color: white; padding: 0.3rem 0.8rem; border-radius: 12px; font-size: 0.9rem;">
+                                        {level_info.get('name', 'Начальный')}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                         """, unsafe_allow_html=True)
                         
-                        for session in program.get('schedule', []):
-                            st.markdown(f"<li>{session}</li>", unsafe_allow_html=True)
-                        
-                        st.markdown("</ul>", unsafe_allow_html=True)
-                        
-                        # Советы по питанию
-                        if 'nutrition_tips' in program:
-                            st.markdown("<p><strong>Советы по питанию:</strong></p><ul>", unsafe_allow_html=True)
-                            for tip in program['nutrition_tips']:
-                                st.markdown(f"<li>{tip}</li>", unsafe_allow_html=True)
-                            st.markdown("</ul>", unsafe_allow_html=True)
-                        
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            # Кнопка для выбора программы
+                        col_btns = st.columns(2)
+                        with col_btns[0]:
                             if st.button(f"🎯 Выбрать программу", key=f"select_{program['id']}", use_container_width=True):
                                 if app.set_current_program(st.session_state.current_user, program['id']):
                                     st.success(f"✅ Программа '{program['name']}' выбрана!")
                                     st.rerun()
-                                else:
-                                    st.error("❌ Ошибка при выборе программы")
-                        
-                        with col2:
-                            # Кнопка для просмотра деталей
+                        with col_btns[1]:
                             if st.button(f"📋 Посмотреть тренировки", key=f"details_{program['id']}", use_container_width=True):
                                 st.session_state.show_program_details = program['id']
                                 st.rerun()
-            else:
-                st.info("""
-                💡 **Рекомендации появятся после заполнения анкеты.**
-                
-                Наш ИИ анализирует ваши данные и подбирает оптимальные тренировочные программы.
-                """)
             
-            # Быстрые действия
-            st.markdown("### ⚡ Быстрые действия")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                if st.button("➕ Добавить тренировку", use_container_width=True):
-                    st.session_state.current_page = "➕ Добавить тренировку"
-                    st.rerun()
-            with col2:
-                if st.button("📈 Мой прогресс", use_container_width=True):
-                    st.session_state.current_page = "📈 Мой прогресс"
-                    st.rerun()
-            with col3:
-                if st.button("🏆 Мои достижения", use_container_width=True):
-                    st.session_state.current_page = "🏆 Достижения"
-                    st.rerun()
-
+            # Популярные упражнения
+            st.markdown('<h3 class="section-header">🔥 Популярные упражнения</h3>', unsafe_allow_html=True)
+            
+            col_exercises = st.columns(4)
+            
+            exercises = [
+                {"name": "Приседания", "count": "15 тренировок", "progress": 75},
+                {"name": "Жим лежа", "count": "11 тренировок", "progress": 60},
+                {"name": "Тяга", "count": "8 тренировок", "progress": 40},
+                {"name": "Планка", "count": "22 тренировки", "progress": 90}
+            ]
+            
+            for i, exercise in enumerate(exercises):
+                with col_exercises[i]:
+                    st.markdown(f"""
+                    <div class="modern-card">
+                        <h4>{exercise['name']}</h4>
+                        <p style="color: #bdc3c7; font-size: 0.9rem;">{exercise['count']}</p>
+                        <div class="progress-container">
+                            <div class="progress-fill" style="width: {exercise['progress']}%; background-color: #2ecc71;"></div>
+                        </div>
+                        <div style="text-align: right; margin-top: 0.5rem;">
+                            <span style="color: #bdc3c7; font-size: 0.9rem;">{exercise['progress']}%</span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+    
     # Мои программы
     elif st.session_state.current_page == "🎯 Мои программы":
-        st.markdown('<h2 class="sub-header">🎯 Мои тренировочные программы</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 class="main-title">🎯 Мои тренировочные программы</h2>', unsafe_allow_html=True)
         
         if not user_profile.get('questionnaire_completed', False):
+            st.markdown('<div class="modern-card">', unsafe_allow_html=True)
             st.warning("Заполните анкету для получения персональных программ")
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
             # Показываем текущую программу
             if user_profile.get('current_program'):
@@ -1454,32 +1664,19 @@ else:
                         break
                 
                 if current_program:
-                    st.markdown("### 🏃 Текущая программа")
+                    st.markdown('<div class="activity-card">', unsafe_allow_html=True)
                     level_info = app.levels.get(current_program['level'], {})
                     
-                    with st.expander(f"📋 {current_program['name']} ({level_info.get('name', 'Начальный')})", expanded=True):
-                        col1, col2 = st.columns([3, 1])
-                        
-                        with col1:
-                            st.write(f"**Описание:** {current_program['description']}")
-                            st.write(f"**Продолжительность:** {current_program['duration_weeks']} недель")
-                            st.write(f"**Тренировок в неделю:** {current_program['sessions_per_week']}")
-                            st.write(f"**Длительность тренировки:** {current_program['session_duration']} минут")
-                            
-                            st.write("**Расписание:**")
-                            for session in current_program.get('schedule', []):
-                                st.write(f"- {session}")
-                        
-                        with col2:
-                            # Показываем иконки активностей
-                            st.write("**Активности:**")
-                            for activity_id in current_program.get('activities', []):
-                                activity = app.activity_types.get(activity_id, {})
-                                st.write(f"{activity.get('icon', '🏃')} {activity.get('name', activity_id)}")
-                            
-                            if st.button("📋 Показать тренировки", key="show_current_program_workouts"):
-                                st.session_state.show_program_details = current_program_id
-                                st.rerun()
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        st.markdown(f"### 🏃 {current_program['name']}")
+                        st.markdown(f"**Уровень:** {level_info.get('name', 'Начальный')}")
+                        st.markdown(f"**Описание:** {current_program['description']}")
+                    with col2:
+                        if st.button("📋 Показать тренировки", use_container_width=True):
+                            st.session_state.show_program_details = current_program_id
+                            st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
             
             # Разделитель
             st.markdown("---")
@@ -1489,7 +1686,7 @@ else:
             goal_programs = app.training_programs.get(goal, [])
             
             if goal_programs:
-                st.markdown(f"### 📊 Программы для вашей цели ({app.goals.get(goal, {}).get('name', 'Похудение')})")
+                st.markdown(f'<h3 class="section-header">📊 Программы для вашей цели</h3>', unsafe_allow_html=True)
                 
                 # Фильтр по уровню
                 level_filter = st.selectbox(
@@ -1505,30 +1702,28 @@ else:
                         filtered_programs.append(program)
                 
                 if filtered_programs:
-                    st.success(f"📊 Найдено {len(filtered_programs)} программ")
-                    
                     for program in filtered_programs:
                         level_info = app.levels.get(program['level'], {})
                         
-                        with st.expander(f"{program['name']} ({level_info.get('name', 'Начальный')})"):
+                        with st.expander(f"{program['name']} ({level_info.get('name', 'Начальный')})", expanded=False):
                             col1, col2 = st.columns([2, 1])
                             
                             with col1:
-                                st.write(f"**Описание:** {program['description']}")
-                                st.write(f"**Продолжительность:** {program['duration_weeks']} недель")
-                                st.write(f"**Тренировок в неделю:** {program['sessions_per_week']}")
-                                st.write(f"**Длительность тренировки:** {program['session_duration']} минут")
+                                st.markdown(f"**Описание:** {program['description']}")
+                                st.markdown(f"**Продолжительность:** {program['duration_weeks']} недель")
+                                st.markdown(f"**Тренировок в неделю:** {program['sessions_per_week']}")
+                                st.markdown(f"**Длительность тренировки:** {program['session_duration']} минут")
                                 
-                                st.write("**Расписание:**")
+                                st.markdown("**Расписание:**")
                                 for session in program.get('schedule', []):
-                                    st.write(f"- {session}")
+                                    st.markdown(f"- {session}")
                             
                             with col2:
                                 # Показываем иконки активностей
-                                st.write("**Активности:**")
+                                st.markdown("**Активности:**")
                                 for activity_id in program.get('activities', []):
                                     activity = app.activity_types.get(activity_id, {})
-                                    st.write(f"{activity.get('icon', '🏃')} {activity.get('name', activity_id)}")
+                                    st.markdown(f"{activity.get('icon', '🏃')} {activity.get('name', activity_id)}")
                                 
                                 col_btn1, col_btn2 = st.columns(2)
                                 with col_btn1:
@@ -1545,10 +1740,11 @@ else:
             else:
                 st.info("Программы для вашей цели находятся в разработке. Скоро появятся!")
 
-       # Добавление тренировки (с возможностью добавления по программе)
+    # Добавление тренировки
     elif st.session_state.current_page == "➕ Добавить тренировку":
-        st.markdown('<h2 class="sub-header">➕ Добавить тренировку</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 class="main-title">➕ Добавить тренировку</h2>', unsafe_allow_html=True)
         
+        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
         with st.form("add_workout_form"):
             # Проверяем, есть ли предзаполненные данные из программы
             program_id = None
@@ -1736,31 +1932,52 @@ else:
                         if 'selected_day_for_workout' in st.session_state:
                             del st.session_state.selected_day_for_workout
                         st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
     # Мой прогресс
     elif st.session_state.current_page == "📈 Мой прогресс":
-        st.markdown('<h2 class="sub-header">📈 Мой прогресс</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 class="main-title">📈 Мой прогресс</h2>', unsafe_allow_html=True)
         
-        # Статистика тренировок
+        # Статистика тренировок в новом стиле
         stats = app.get_statistics(st.session_state.current_user)
         workouts = app.get_all_workouts(st.session_state.current_user)
         
         if stats:
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Всего тренировок", stats['total_workouts'])
-            with col2:
-                st.metric("Общее время", f"{int(stats['total_minutes'])} мин")
-            with col3:
-                if not pd.isna(stats['avg_duration']):
-                    st.metric("Средняя длительность", f"{stats['avg_duration']:.0f} мин")
-                else:
-                    st.metric("Средняя длительность", "0 мин")
-            with col4:
-                st.metric("Текущая серия", f"{stats.get('workout_streak', 0)} дней")
+            col_stats = st.columns(4)
+            with col_stats[0]:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="big-number">{stats['total_workouts']}</div>
+                    <div class="metric-label">Всего тренировок</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col_stats[1]:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="big-number">{int(stats['total_minutes'])}</div>
+                    <div class="metric-label">Минут тренировок</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col_stats[2]:
+                avg_duration = stats['avg_duration'] if not pd.isna(stats['avg_duration']) else 0
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="big-number">{int(avg_duration)}</div>
+                    <div class="metric-label">Средняя длительность</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col_stats[3]:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="big-number">{stats.get('workout_streak', 0)}</div>
+                    <div class="metric-label">Текущая серия</div>
+                </div>
+                """, unsafe_allow_html=True)
         
         # График тренировок
         if not workouts.empty:
-            st.markdown("### 📊 График активности")
+            st.markdown('<h3 class="section-header">📊 График активности</h3>', unsafe_allow_html=True)
             
             # Группируем по дням
             workouts['date_only'] = workouts['date'].dt.date
@@ -1770,38 +1987,49 @@ else:
             }).reset_index()
             daily_workouts.columns = ['date', 'total_minutes', 'workout_count']
             
+            # Стилизованный график
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
             
             # График 1: Длительность тренировок по дням
-            ax1.bar(daily_workouts['date'], daily_workouts['total_minutes'], color='#4CAF50')
-            ax1.set_title('Длительность тренировок по дням', fontsize=14, fontweight='bold')
-            ax1.set_ylabel('Минуты')
-            ax1.grid(True, alpha=0.3)
-            plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45)
+            ax1.bar(daily_workouts['date'], daily_workouts['total_minutes'], color='#2ecc71')
+            ax1.set_title('Длительность тренировок по дням', fontsize=14, fontweight='bold', color='white')
+            ax1.set_ylabel('Минуты', color='white')
+            ax1.tick_params(axis='x', colors='white')
+            ax1.tick_params(axis='y', colors='white')
+            ax1.set_facecolor('#1a1a2e')
+            ax1.grid(True, alpha=0.3, color='white')
+            plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45, color='white')
             
             # График 2: Количество тренировок по дням
-            ax2.bar(daily_workouts['date'], daily_workouts['workout_count'], color='#2196F3')
-            ax2.set_title('Количество тренировок по дням', fontsize=14, fontweight='bold')
-            ax2.set_ylabel('Тренировки')
-            ax2.set_xlabel('Дата')
-            ax2.grid(True, alpha=0.3)
-            plt.setp(ax2.xaxis.get_majorticklabels(), rotation=45)
+            ax2.bar(daily_workouts['date'], daily_workouts['workout_count'], color='#3498db')
+            ax2.set_title('Количество тренировок по дням', fontsize=14, fontweight='bold', color='white')
+            ax2.set_ylabel('Тренировки', color='white')
+            ax2.set_xlabel('Дата', color='white')
+            ax2.tick_params(axis='x', colors='white')
+            ax2.tick_params(axis='y', colors='white')
+            ax2.set_facecolor('#1a1a2e')
+            ax2.grid(True, alpha=0.3, color='white')
+            plt.setp(ax2.xaxis.get_majorticklabels(), rotation=45, color='white')
             
+            fig.patch.set_facecolor('#1a1a2e')
             plt.tight_layout()
             st.pyplot(fig)
             
             # Таблица последних тренировок
-            st.markdown("### 📋 История тренировок")
+            st.markdown('<h3 class="section-header">📋 История тренировок</h3>', unsafe_allow_html=True)
             recent_workouts = workouts.head(10).copy()
             recent_workouts['date'] = recent_workouts['date'].dt.strftime('%d.%m.%Y %H:%M')
+            # Стилизуем таблицу
             st.dataframe(recent_workouts[['date', 'workout_type', 'duration', 'intensity', 'notes']], 
                         use_container_width=True, hide_index=True)
         else:
+            st.markdown('<div class="modern-card">', unsafe_allow_html=True)
             st.info("📝 У вас пока нет тренировок. Добавьте первую!")
+            st.markdown('</div>', unsafe_allow_html=True)
 
     # Достижения
     elif st.session_state.current_page == "🏆 Достижения":
-        st.markdown('<h2 class="sub-header">🏆 Мои достижения</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 class="main-title">🏆 Мои достижения</h2>', unsafe_allow_html=True)
         
         achievements = app.get_achievements(st.session_state.current_user)
         stats = app.get_statistics(st.session_state.current_user)
@@ -1810,31 +2038,39 @@ else:
             unlocked = [a for a in achievements if a.get('unlocked', False)]
             total = len(achievements)
             
-            st.success(f"🎉 У вас {len(unlocked)} из {total} достижений!")
-            
-            # Прогресс-бар
+            # Прогресс-бар достижений
+            st.markdown('<h3 class="section-header">🎯 Прогресс достижений</h3>', unsafe_allow_html=True)
             if total > 0:
                 progress = len(unlocked) / total * 100
-                st.progress(min(int(progress), 100) / 100)
-                st.caption(f"Прогресс: {len(unlocked)}/{total} ({progress:.1f}%)")
+                st.markdown(f"""
+                <div style='background: rgba(255,255,255,0.1); border-radius: 10px; padding: 1rem; margin-bottom: 1rem;'>
+                    <div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
+                        <span>Получено достижений: {len(unlocked)}/{total}</span>
+                        <span>{progress:.1f}%</span>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-fill" style="width: {progress}%; background-color: #f39c12;"></div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
             
-            # Отображение достижений
-            st.markdown("### 🏆 Полученные достижения")
+            # Отображение достижений в новом стиле
+            st.markdown('<h3 class="section-header">🏆 Полученные достижения</h3>', unsafe_allow_html=True)
             if unlocked:
                 cols = st.columns(3)
                 for i, achievement in enumerate(unlocked):
                     with cols[i % 3]:
                         st.markdown(f"""
-                        <div class="achievement-card">
-                            <h3>{achievement['icon']}</h3>
-                            <h4>{achievement['title']}</h4>
-                            <p>{achievement['description']}</p>
+                        <div class="nutrition-card">
+                            <div style='text-align: center; font-size: 2rem; margin-bottom: 0.5rem;'>{achievement['icon']}</div>
+                            <h4 style='text-align: center;'>{achievement['title']}</h4>
+                            <p style='text-align: center; font-size: 0.9rem; color: #bdc3c7;'>{achievement['description']}</p>
                         </div>
                         """, unsafe_allow_html=True)
             
             # Ближайшие цели
             if stats:
-                st.markdown("### 🎯 Ближайшие цели")
+                st.markdown('<h3 class="section-header">🎯 Ближайшие цели</h3>', unsafe_allow_html=True)
                 goals_data = []
                 
                 if stats.get('total_workouts', 0) < 10:
@@ -1852,8 +2088,11 @@ else:
                     goals_df = pd.DataFrame(goals_data, columns=['Достижение', 'Прогресс', 'Осталось'])
                     st.dataframe(goals_df, use_container_width=True, hide_index=True)
                 else:
+                    st.markdown('<div class="activity-card">', unsafe_allow_html=True)
                     st.success("🎊 Все основные цели достигнуты! Вы настоящий чемпион! 🏆")
+                    st.markdown('</div>', unsafe_allow_html=True)
         else:
+            st.markdown('<div class="modern-card">', unsafe_allow_html=True)
             st.info("""
             **Начните тренироваться чтобы получить достижения!** 🏋️‍♀️
             
@@ -1868,19 +2107,23 @@ else:
             🏆 **Цель достигнута** - Достижение целевого веса
             📋 **Программа начата** - Начало тренировочной программы
             """)
+            st.markdown('</div>', unsafe_allow_html=True)
 
     # Мой профиль
     elif st.session_state.current_page == "👤 Мой профиль":
-        st.markdown('<h2 class="sub-header">👤 Мой профиль</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 class="main-title">👤 Мой профиль</h2>', unsafe_allow_html=True)
         
         if not user_profile.get('questionnaire_completed', False):
+            st.markdown('<div class="modern-card">', unsafe_allow_html=True)
             st.warning("Анкета не заполнена. Заполните для получения персонализированных рекомендаций.")
             if st.button("📝 Заполнить анкету", use_container_width=True):
                 st.session_state.show_questionnaire = True
                 st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
+            st.markdown('<div class="modern-card">', unsafe_allow_html=True)
             with st.form("update_profile_form"):
-                st.subheader("📏 Личные данные")
+                st.markdown('<h3 class="section-header">📏 Личные данные</h3>', unsafe_allow_html=True)
                 
                 personal_info = user_profile.get('personal_info', {})
                 goals = user_profile.get('goals', {})
@@ -1898,7 +2141,7 @@ else:
                                          index=0 if personal_info.get('gender') == 'Женский' else 1, 
                                          key="profile_gender")
                 
-                st.subheader("🎯 Цели")
+                st.markdown('<h3 class="section-header">🎯 Цели</h3>', unsafe_allow_html=True)
                 
                 # Получаем текущую цель
                 current_goal_key = goals.get('primary_goal', 'weight_loss')
@@ -1927,7 +2170,7 @@ else:
                 target_weight = st.number_input("Желаемый вес (кг):", min_value=30, max_value=200, 
                                               value=goals.get('target_weight', 65), key="profile_target_weight")
                 
-                st.subheader("🏋️‍♀️ Предпочитаемые активности")
+                st.markdown('<h3 class="section-header">🏋️‍♀️ Предпочитаемые активности</h3>', unsafe_allow_html=True)
                 activity_options = list(app.activity_types.keys())
                 activity_names = [app.activity_types[a]['name'] for a in activity_options]
                 
@@ -1946,7 +2189,7 @@ else:
                 
                 preferred_activities = [activity_options[i] for i in selected_indices]
                 
-                # Кнопка отправки формы ДОЛЖНА быть внутри формы
+                # Кнопка отправки формы
                 submit_button = st.form_submit_button("💾 Обновить профиль", use_container_width=True)
                 
                 if submit_button:
@@ -1968,8 +2211,9 @@ else:
                         st.rerun()
                     else:
                         st.error("❌ Ошибка обновления профиля")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-# Обработка просмотра деталей программы (модальное окно)
+# Обработка просмотра деталей программы
 if st.session_state.get('show_program_details'):
     program_id = st.session_state.show_program_details
     
@@ -1986,21 +2230,15 @@ if st.session_state.get('show_program_details'):
     if program_info:
         # Создаем модальное окно
         st.markdown("---")
-        st.markdown(f"### 📋 {program_info['name']}")
+        st.markdown(f"<h2 class='main-title'>📋 {program_info['name']}</h2>", unsafe_allow_html=True)
         
         level_info = app.levels.get(program_info['level'], {})
-        st.markdown(f"**Уровень:** <span class='goal-badge {level_info.get("color", "level-beginner")}'>{level_info.get('name', 'Начальный')}</span>", unsafe_allow_html=True)
+        st.markdown(f"<p><strong>Уровень:</strong> {level_info.get('name', 'Начальный')}</p>", unsafe_allow_html=True)
         
         # Получаем все дни тренировок
         workout_days = app.get_all_workout_days(program_id)
         
         if workout_days:
-            # Выбор дня тренировки
-            if st.session_state.get('selected_day') and st.session_state.selected_day in workout_days:
-                selected_day = st.session_state.selected_day
-            else:
-                selected_day = workout_days[0]
-            
             # Создаем табы для дней
             tabs = st.tabs([f"День {i+1}" for i in range(len(workout_days))])
             
@@ -2010,15 +2248,15 @@ if st.session_state.get('show_program_details'):
                     exercises = app.get_exercises_for_program(program_id, day_key)
                     
                     if exercises:
-                        st.markdown(f"#### {exercises.get('title', f'Тренировка {i+1}')}")
+                        st.markdown(f"<h3 class='section-header'>{exercises.get('title', f'Тренировка {i+1}')}</h3>", unsafe_allow_html=True)
                         
                         # Видео тренировки
                         if 'video_url' in exercises:
                             st.markdown(f"""
-                            <div style='margin: 1rem 0; padding: 1rem; background: #f0f8ff; border-radius: 10px;'>
-                                <h5>🎥 Видео тренировки</h5>
+                            <div class="modern-card">
+                                <h4>🎥 Видео тренировки</h4>
                                 <p>{exercises.get('video_description', 'Полная тренировка')}</p>
-                                <a href='{exercises['video_url']}' target='_blank' class='video-link'>
+                                <a href='{exercises['video_url']}' target='_blank' style='color: #3498db; text-decoration: none; font-weight: bold;'>
                                     📺 Смотреть тренировку на YouTube
                                 </a>
                             </div>
@@ -2026,30 +2264,29 @@ if st.session_state.get('show_program_details'):
                         
                         # Разминка
                         if 'warmup' in exercises:
-                            st.markdown(f"**🔥 Разминка:** {exercises['warmup']}")
+                            st.markdown(f"<div class='modern-card'><strong>🔥 Разминка:</strong> {exercises['warmup']}</div>", unsafe_allow_html=True)
                         
                         # Упражнения
-                        st.markdown("##### 📋 Упражнения:")
+                        st.markdown('<h4 class="section-header">📋 Упражнения:</h4>', unsafe_allow_html=True)
                         for j, exercise in enumerate(exercises.get('exercises', [])):
-                            with st.container():
-                                st.markdown(f"""
-                                <div class="exercise-item">
-                                    <h5>{j+1}. {exercise.get('name', 'Упражнение')}</h5>
-                                    <p><strong>Тип:</strong> {exercise.get('type', 'Общее')}</p>
-                                """, unsafe_allow_html=True)
-                                
-                                if 'duration' in exercise:
-                                    st.markdown(f"<p><strong>Длительность:</strong> {exercise['duration']}</p>", unsafe_allow_html=True)
-                                if 'sets' in exercise and 'reps' in exercise:
-                                    st.markdown(f"<p><strong>Подходы/Повторения:</strong> {exercise['sets']} × {exercise['reps']}</p>", unsafe_allow_html=True)
-                                if 'rest' in exercise:
-                                    st.markdown(f"<p><strong>Отдых:</strong> {exercise['rest']}</p>", unsafe_allow_html=True)
-                                
-                                st.markdown("</div>", unsafe_allow_html=True)
+                            st.markdown(f"""
+                            <div class="nutrition-card" style="margin-bottom: 0.5rem;">
+                                <h5>{j+1}. {exercise.get('name', 'Упражнение')}</h5>
+                                <p><strong>Тип:</strong> {exercise.get('type', 'Общее')}</p>
+                            """, unsafe_allow_html=True)
+                            
+                            if 'duration' in exercise:
+                                st.markdown(f"<p><strong>Длительность:</strong> {exercise['duration']}</p>", unsafe_allow_html=True)
+                            if 'sets' in exercise and 'reps' in exercise:
+                                st.markdown(f"<p><strong>Подходы/Повторения:</strong> {exercise['sets']} × {exercise['reps']}</p>", unsafe_allow_html=True)
+                            if 'rest' in exercise:
+                                st.markdown(f"<p><strong>Отдых:</strong> {exercise['rest']}</p>", unsafe_allow_html=True)
+                            
+                            st.markdown("</div>", unsafe_allow_html=True)
                         
                         # Заминка
                         if 'cooldown' in exercises:
-                            st.markdown(f"**🧘 Заминка:** {exercises['cooldown']}")
+                            st.markdown(f"<div class='modern-card'><strong>🧘 Заминка:</strong> {exercises['cooldown']}</div>", unsafe_allow_html=True)
                         
                         # Кнопка для добавления этой тренировки
                         st.markdown("---")
@@ -2089,8 +2326,8 @@ if st.session_state.get('show_program_details'):
 # Футер
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #666;'>
-    <p>🧘 <strong>Фитнес Помощник v8.0</strong> | Умный подбор тренировок на основе ваших данных</p>
-    <p>Ваш персональный тренер для любого вида фитнеса</p>
+<div style='text-align: center; color: #666; padding: 2rem 0;'>
+    <p>💪 <strong>Фитнес Помощник v8.0</strong> | Умный подбор тренировок на основе ваших данных</p>
+    <p style='font-size: 0.9rem;'>Ваш персональный тренер для любого вида фитнеса</p>
 </div>
 """, unsafe_allow_html=True)
