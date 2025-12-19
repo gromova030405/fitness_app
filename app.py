@@ -4,15 +4,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime, timedelta
 import numpy as np
-from sklearn.linear_model import LinearRegression
 import os
 import hashlib
 import json
-import random
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
+import joblib
 
 # Настройка страницы
 st.set_page_config(
-    page_title="💪 Фитнес Трекер",
+    page_title="💪 Фитнес Помощник",
     page_icon="💪",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -42,18 +43,18 @@ st.markdown("""
         border-radius: 10px;
         margin: 0.5rem 0;
     }
-    .recommendation-card {
-        background: #f8f9fa;
-        border: 1px solid #e9ecef;
+    .training-card {
+        border: 2px solid #4CAF50;
         border-radius: 10px;
-        padding: 1rem;
-        margin: 0.5rem 0;
-        cursor: pointer;
-        transition: transform 0.2s;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        background: #f9fff9;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: transform 0.3s;
     }
-    .recommendation-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    .training-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.2);
     }
     .achievement-card {
         background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
@@ -63,98 +64,396 @@ st.markdown("""
         margin: 0.5rem 0;
         text-align: center;
     }
+    .progress-card {
+        background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 0.5rem 0;
+    }
     .sport-icon {
         font-size: 2rem;
         margin-bottom: 0.5rem;
+        display: block;
+        text-align: center;
     }
-    .training-card {
-        border: 2px solid #4CAF50;
-        border-radius: 10px;
-        padding: 1rem;
-        margin: 1rem 0;
-        background: #f9fff9;
+    .goal-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        margin: 0.25rem;
     }
+    .weight-loss { background: #ff6b6b; color: white; }
+    .muscle-gain { background: #4ecdc4; color: white; }
+    .endurance { background: #45b7d1; color: white; }
+    .flexibility { background: #96ceb4; color: white; }
+    .health { background: #feca57; color: white; }
 </style>
 """, unsafe_allow_html=True)
 
-class FitnessApp:
+class FitnessAssistant:
     def __init__(self):
         self.data_dir = 'user_data'
         self._ensure_data_directory()
         # Инициализация базы знаний о тренировках
         self.init_training_knowledge_base()
+        # Загрузка или создание ML модели
+        self.init_ml_model()
     
     def _ensure_data_directory(self):
         """Создает папку для данных если её нет"""
         os.makedirs(self.data_dir, exist_ok=True)
     
     def init_training_knowledge_base(self):
-        """Инициализация базы знаний о тренировках для разных видов спорта"""
-        self.sport_types = {
-            'Силовые тренировки': {
-                'icon': '🏋️',
-                'exercises': ['Жим лежа', 'Приседания', 'Становая тяга', 'Жим стоя', 'Тяга штанги'],
-                'goals': ['Увеличение силы', 'Набор мышечной массы', 'Улучшение выносливости']
+        """Инициализация базы знаний о тренировках для разных целей"""
+        
+        # Основные цели пользователей
+        self.goals = {
+            'weight_loss': {
+                'name': 'Похудение',
+                'icon': '⚖️',
+                'color': 'weight-loss',
+                'description': 'Снижение веса и уменьшение жировой массы'
             },
-            'Бег/Кардио': {
+            'muscle_gain': {
+                'name': 'Набор мышечной массы',
+                'icon': '💪',
+                'color': 'muscle-gain',
+                'description': 'Увеличение мышечной массы и силы'
+            },
+            'endurance': {
+                'name': 'Улучшение выносливости',
                 'icon': '🏃',
-                'exercises': ['Бег', 'Велотренажер', 'Скакалка', 'Плавание', 'Ходьба'],
-                'goals': ['Снижение веса', 'Улучшение выносливости', 'Подготовка к забегу']
+                'color': 'endurance',
+                'description': 'Повышение кардио-выносливости'
             },
-            'Йога/Пилатес': {
+            'flexibility': {
+                'name': 'Развитие гибкости',
                 'icon': '🧘',
-                'exercises': ['Планка', 'Кобра', 'Собака мордой вниз', 'Воин', 'Дерево'],
-                'goals': ['Гибкость', 'Расслабление', 'Улучшение осанки']
+                'color': 'flexibility',
+                'description': 'Улучшение гибкости и мобильности'
             },
-            'Функциональный тренинг': {
-                'icon': '⚡',
-                'exercises': ['Берпи', 'Прыжки на тумбу', 'Гребля', 'Фермерская прогулка', 'Толчки санок'],
-                'goals': ['Общая физическая подготовка', 'Функциональная сила', 'Выносливость']
+            'health': {
+                'name': 'Общее оздоровление',
+                'icon': '❤️',
+                'color': 'health',
+                'description': 'Улучшение общего состояния здоровья'
+            }
+        }
+        
+        # Виды физической активности
+        self.activity_types = {
+            'yoga': {
+                'name': 'Йога',
+                'icon': '🧘',
+                'description': 'Практики для развития гибкости и равновесия',
+                'intensity': 'Низкая',
+                'calories_per_hour': 200,
+                'equipment': 'Коврик'
             },
-            'Кроссфит': {
-                'icon': '🔥',
-                'exercises': ['Трастеры', 'Подтягивания', 'Отжимания', 'Становая тяга', 'Бег'],
-                'goals': ['Всестороннее развитие', 'Соревновательная подготовка', 'Высокая интенсивность']
+            'pilates': {
+                'name': 'Пилатес',
+                'icon': '🤸',
+                'description': 'Упражнения для укрепления мышц кора',
+                'intensity': 'Средняя',
+                'calories_per_hour': 250,
+                'equipment': 'Коврик, мяч'
+            },
+            'circuit_training': {
+                'name': 'Круговые тренировки',
+                'icon': '🔄',
+                'description': 'Интенсивные тренировки по кругу',
+                'intensity': 'Высокая',
+                'calories_per_hour': 500,
+                'equipment': 'Гантели, коврик'
+            },
+            'cardio': {
+                'name': 'Кардио-тренировки',
+                'icon': '🏃',
+                'description': 'Тренировки для сердечно-сосудистой системы',
+                'intensity': 'Средняя-Высокая',
+                'calories_per_hour': 400,
+                'equipment': 'Беговая дорожка, велотренажер'
+            },
+            'strength': {
+                'name': 'Силовые тренировки',
+                'icon': '🏋️',
+                'description': 'Упражнения с отягощениями',
+                'intensity': 'Средняя-Высокая',
+                'calories_per_hour': 300,
+                'equipment': 'Гантели, штанга'
+            },
+            'stretching': {
+                'name': 'Растяжка',
+                'icon': '✨',
+                'description': 'Упражнения на растяжку мышц',
+                'intensity': 'Низкая',
+                'calories_per_hour': 150,
+                'equipment': 'Коврик'
             }
         }
         
         # База тренировочных программ
         self.training_programs = {
-            'Силовые тренировки': [
+            'weight_loss': [
                 {
-                    'name': 'Новичок в силовых',
+                    'id': 'wl_beginner',
+                    'name': 'Похудение для начинающих',
                     'level': 'Начальный',
-                    'description': 'Базовая программа для развития силы',
-                    'exercises': ['Приседания 3x8', 'Жим лежа 3x8', 'Тяга штанги 3x8', 'Планка 3x30сек'],
-                    'video_link': 'https://www.youtube.com/watch?v=example1'
+                    'description': 'Программа для мягкого начала похудения',
+                    'duration_weeks': 8,
+                    'sessions_per_week': 3,
+                    'session_duration': 40,
+                    'activities': ['cardio', 'circuit_training', 'pilates'],
+                    'schedule': [
+                        'День 1: Кардио 30 мин + Растяжка 10 мин',
+                        'День 2: Круговая тренировка 40 мин',
+                        'День 3: Пилатес 30 мин + Кардио 10 мин'
+                    ],
+                    'nutrition_tips': [
+                        'Пейте 2 литра воды в день',
+                        'Увеличьте потребление белка',
+                        'Снизьте потребление быстрых углеводов'
+                    ],
+                    'progress_tracking': [
+                        'Вес 1 раз в неделю',
+                        'Объемы талии и бедер каждые 2 недели',
+                        'Фото прогресса каждые 4 недели'
+                    ]
                 },
                 {
-                    'name': 'Интенсивный набор массы',
-                    'level': 'Продвинутый',
-                    'description': 'Программа для быстрого набора мышечной массы',
-                    'exercises': ['Жим лежа 4x6', 'Становая тяга 3x5', 'Жим гантелей 3x10', 'Подтягивания 3xмакс'],
-                    'video_link': 'https://www.youtube.com/watch?v=example2'
+                    'id': 'wl_intensive',
+                    'name': 'Интенсивное похудение',
+                    'level': 'Средний',
+                    'description': 'Программа для быстрого снижения веса',
+                    'duration_weeks': 6,
+                    'sessions_per_week': 5,
+                    'session_duration': 50,
+                    'activities': ['circuit_training', 'cardio', 'strength'],
+                    'schedule': [
+                        'День 1: ВИИТ кардио 30 мин',
+                        'День 2: Силовая тренировка 40 мин',
+                        'День 3: Круговая тренировка 45 мин',
+                        'День 4: Активный отдых (ходьба)',
+                        'День 5: Интервальное кардио 35 мин'
+                    ],
+                    'nutrition_tips': [
+                        'Дефицит калорий 300-500 ккал в день',
+                        '5-6 небольших приемов пищи',
+                        'Белок 1.5г на кг веса'
+                    ]
                 }
             ],
-            'Бег/Кардио': [
+            'muscle_gain': [
                 {
-                    'name': 'Старт бегуна',
+                    'id': 'mg_beginner',
+                    'name': 'Набор массы для начинающих',
                     'level': 'Начальный',
-                    'description': 'Программа для начинающих бегунов',
-                    'exercises': ['Интервальный бег 20 мин', 'Растяжка 10 мин', 'Силовые упражнения на ноги'],
-                    'video_link': 'https://www.youtube.com/watch?v=example3'
+                    'description': 'Базовая программа для набора мышечной массы',
+                    'duration_weeks': 12,
+                    'sessions_per_week': 4,
+                    'session_duration': 60,
+                    'activities': ['strength', 'cardio'],
+                    'schedule': [
+                        'День 1: Верх тела (грудь, спина)',
+                        'День 2: Ноги',
+                        'День 3: Отдых',
+                        'День 4: Плечи, руки',
+                        'День 5: Кардио 20 мин'
+                    ]
                 }
             ],
-            'Йога/Пилатес': [
+            'flexibility': [
                 {
-                    'name': 'Утренняя йога',
-                    'level': 'Любой',
-                    'description': 'Комплекс для пробуждения и растяжки',
-                    'exercises': ['Приветствие солнцу', 'Поза кошки-коровы', 'Детская поза', 'Шавасана'],
-                    'video_link': 'https://www.youtube.com/watch?v=example4'
+                    'id': 'flex_beginner',
+                    'name': 'Йога для начинающих',
+                    'level': 'Начальный',
+                    'description': 'Программа для развития гибкости и расслабления',
+                    'duration_weeks': 4,
+                    'sessions_per_week': 5,
+                    'session_duration': 30,
+                    'activities': ['yoga', 'stretching'],
+                    'schedule': [
+                        'День 1: Утренняя йога 20 мин',
+                        'День 2: Вечерняя растяжка 30 мин',
+                        'День 3: Йога для спины 25 мин',
+                        'День 4: Отдых',
+                        'День 5: Полная сессия йоги 30 мин'
+                    ]
+                },
+                {
+                    'id': 'flex_pilates',
+                    'name': 'Пилатес для гибкости',
+                    'level': 'Средний',
+                    'description': 'Программа пилатеса для развития гибкости',
+                    'duration_weeks': 6,
+                    'sessions_per_week': 4,
+                    'session_duration': 45,
+                    'activities': ['pilates', 'stretching'],
+                    'schedule': [
+                        'День 1: Пилатес для начинающих 40 мин',
+                        'День 2: Растяжка 30 мин',
+                        'День 3: Пилатес для пресса 45 мин',
+                        'День 4: Йога-стретчинг 35 мин'
+                    ]
+                }
+            ],
+            'endurance': [
+                {
+                    'id': 'end_beginner',
+                    'name': 'Кардио для выносливости',
+                    'level': 'Начальный',
+                    'description': 'Программа для улучшения кардио-выносливости',
+                    'duration_weeks': 8,
+                    'sessions_per_week': 3,
+                    'session_duration': 40,
+                    'activities': ['cardio', 'circuit_training'],
+                    'schedule': [
+                        'День 1: Бег/Ходьба 30 мин',
+                        'День 2: Велотренажер 35 мин',
+                        'День 3: Круговая тренировка 40 мин'
+                    ]
                 }
             ]
         }
+    
+    def init_ml_model(self):
+        """Инициализация ML модели для подбора тренировок"""
+        model_path = os.path.join(self.data_dir, 'training_recommender.pkl')
+        
+        if os.path.exists(model_path):
+            # Загружаем существующую модель
+            self.model = joblib.load(model_path)
+            self.scaler = joblib.load(os.path.join(self.data_dir, 'scaler.pkl'))
+        else:
+            # Создаем и обучаем модель на синтетических данных
+            self.train_recommendation_model()
+    
+    def train_recommendation_model(self):
+        """Обучает модель на синтетических данных"""
+        # Создаем синтетические данные для обучения
+        np.random.seed(42)
+        n_samples = 1000
+        
+        # Признаки: возраст, вес, рост, пол (0-жен,1-муж), цель (кодированная)
+        X = np.zeros((n_samples, 5))
+        X[:, 0] = np.random.randint(18, 65, n_samples)  # возраст
+        X[:, 1] = np.random.normal(70, 15, n_samples)   # вес
+        X[:, 2] = np.random.normal(170, 10, n_samples)  # рост
+        X[:, 3] = np.random.randint(0, 2, n_samples)    # пол
+        
+        # Рассчитываем ИМТ
+        bmi = X[:, 1] / ((X[:, 2] / 100) ** 2)
+        
+        # Цели на основе ИМТ и других факторов
+        y = []
+        for i in range(n_samples):
+            if bmi[i] > 25:
+                y.append('weight_loss')  # Похудение
+            elif bmi[i] < 18.5:
+                y.append('muscle_gain')  # Набор массы
+            elif X[i, 0] > 50:
+                y.append('flexibility')  # Гибкость для старшего возраста
+            else:
+                y.append('endurance')    # Выносливость для молодых
+        
+        # Кодируем цели
+        from sklearn.preprocessing import LabelEncoder
+        le = LabelEncoder()
+        y_encoded = le.fit_transform(y)
+        
+        # Масштабируем признаки
+        self.scaler = StandardScaler()
+        X_scaled = self.scaler.fit_transform(X)
+        
+        # Обучаем модель
+        self.model = RandomForestClassifier(n_estimators=100, random_state=42)
+        self.model.fit(X_scaled, y_encoded)
+        
+        # Сохраняем модель и скейлер
+        joblib.dump(self.model, os.path.join(self.data_dir, 'training_recommender.pkl'))
+        joblib.dump(self.scaler, os.path.join(self.data_dir, 'scaler.pkl'))
+        joblib.dump(le, os.path.join(self.data_dir, 'label_encoder.pkl'))
+    
+    def recommend_programs_based_on_profile(self, user_profile):
+        """Рекомендует программы тренировок на основе профиля пользователя"""
+        personal_info = user_profile.get('personal_info', {})
+        goals = user_profile.get('goals', {})
+        preferred_activities = user_profile.get('preferred_activities', [])
+        
+        # Извлекаем данные для ML модели
+        age = personal_info.get('age', 30)
+        weight = personal_info.get('weight', 70)
+        height = personal_info.get('height', 170)
+        gender = 0 if personal_info.get('gender') == 'Женский' else 1
+        primary_goal = goals.get('primary_goal', 'weight_loss')
+        
+        # Подготавливаем признаки для модели
+        X = np.array([[age, weight, height, gender]])
+        X_scaled = self.scaler.transform(X)
+        
+        # Предсказываем цель
+        le = joblib.load(os.path.join(self.data_dir, 'label_encoder.pkl'))
+        predicted_goal_encoded = self.model.predict(X_scaled)[0]
+        predicted_goal = le.inverse_transform([predicted_goal_encoded])[0]
+        
+        # Используем либо выбранную пользователем цель, либо предсказанную
+        final_goal = primary_goal if primary_goal in self.goals else predicted_goal
+        
+        # Получаем программы для цели
+        recommended_programs = self.training_programs.get(final_goal, [])
+        
+        # Фильтруем по предпочитаемым активностям
+        if preferred_activities:
+            filtered_programs = []
+            for program in recommended_programs:
+                program_activities = program.get('activities', [])
+                # Проверяем, есть ли пересечение с предпочитаемыми активностями
+                if any(activity in preferred_activities for activity in program_activities):
+                    filtered_programs.append(program)
+            
+            if filtered_programs:
+                return filtered_programs[:3]  # Возвращаем до 3 программ
+        
+        return recommended_programs[:3]
+    
+    def calculate_calories_needed(self, user_profile):
+        """Рассчитывает суточную потребность в калориях"""
+        personal_info = user_profile.get('personal_info', {})
+        
+        weight = personal_info.get('weight', 70)
+        height = personal_info.get('height', 170)
+        age = personal_info.get('age', 30)
+        gender = personal_info.get('gender', 'Женский')
+        activity_level = personal_info.get('activity_level', 'sedentary')
+        
+        # Базальный метаболизм (формула Миффлина-Сан Жеора)
+        if gender == 'Мужской':
+            bmr = 10 * weight + 6.25 * height - 5 * age + 5
+        else:
+            bmr = 10 * weight + 6.25 * height - 5 * age - 161
+        
+        # Коэффициент активности
+        activity_multipliers = {
+            'sedentary': 1.2,      # Сидячий образ жизни
+            'light': 1.375,        # Легкая активность 1-3 раза в неделю
+            'moderate': 1.55,      # Умеренная активность 3-5 раз в неделю
+            'active': 1.725,       Высокая активность 6-7 раз в неделю
+            'very_active': 1.9     # Очень высокая активность
+        }
+        
+        tdee = bmr * activity_multipliers.get(activity_level, 1.2)
+        
+        # Корректировка по цели
+        goal = user_profile.get('goals', {}).get('primary_goal', 'weight_loss')
+        if goal == 'weight_loss':
+            calories = tdee - 500  # Дефицит для похудения
+        elif goal == 'muscle_gain':
+            calories = tdee + 300  # Профицит для набора массы
+        else:
+            calories = tdee  # Поддержание
+        
+        return int(calories), int(tdee)
     
     def get_user_filename(self, username, file_type='workouts'):
         """Генерирует имя файла для пользователя"""
@@ -187,13 +486,13 @@ class FitnessApp:
             with open(users_file, 'w') as f:
                 json.dump(users, f)
             
-            # Создаем профиль с флагом, что анкета не заполнена
+            # Создаем профиль
             profile = {
                 'username': username,
                 'created_at': datetime.now().isoformat(),
                 'personal_info': {},
                 'goals': {},
-                'sport_type': None,
+                'preferred_activities': [],
                 'questionnaire_completed': False
             }
             self.save_user_profile(username, profile)
@@ -247,7 +546,7 @@ class FitnessApp:
                     'created_at': datetime.now().isoformat(),
                     'personal_info': {},
                     'goals': {},
-                    'sport_type': None,
+                    'preferred_activities': [],
                     'questionnaire_completed': False
                 }
         except:
@@ -256,40 +555,46 @@ class FitnessApp:
                 'created_at': datetime.now().isoformat(),
                 'personal_info': {},
                 'goals': {},
-                'sport_type': None,
+                'preferred_activities': [],
                 'questionnaire_completed': False
             }
     
-    def complete_questionnaire(self, username, personal_info, sport_type, goals):
+    def complete_questionnaire(self, username, personal_info, goals, preferred_activities):
         """Завершает анкету пользователя"""
         profile = self.load_user_profile(username)
         profile['personal_info'] = personal_info
-        profile['sport_type'] = sport_type
         profile['goals'] = goals
+        profile['preferred_activities'] = preferred_activities
         profile['questionnaire_completed'] = True
         profile['questionnaire_date'] = datetime.now().isoformat()
         
+        # Рассчитываем ИМТ
+        height_m = personal_info['height'] / 100
+        bmi = personal_info['weight'] / (height_m ** 2)
+        profile['bmi'] = round(bmi, 1)
+        profile['bmi_category'] = self.get_bmi_category(bmi)
+        
         return self.save_user_profile(username, profile)
     
-    def get_recommended_trainings(self, username):
-        """Возвращает рекомендуемые тренировки на основе профиля"""
-        profile = self.load_user_profile(username)
-        sport_type = profile.get('sport_type')
-        
-        if not sport_type or sport_type not in self.training_programs:
-            return []
-        
-        return self.training_programs.get(sport_type, [])
+    def get_bmi_category(self, bmi):
+        """Определяет категорию ИМТ"""
+        if bmi < 18.5:
+            return 'Недостаточный вес'
+        elif bmi < 25:
+            return 'Нормальный вес'
+        elif bmi < 30:
+            return 'Избыточный вес'
+        else:
+            return 'Ожирение'
     
-    def add_workout(self, username, exercise, weight, reps, sets, notes=''):
-        """Добавляет новую тренировку для пользователя"""
+    def add_workout(self, username, workout_type, duration, intensity, notes=''):
+        """Добавляет тренировку пользователя"""
         try:
             new_data = {
                 'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'exercise': exercise,
-                'weight': float(weight),
-                'reps': int(reps),
-                'sets': int(sets),
+                'workout_type': workout_type,
+                'duration': int(duration),
+                'intensity': intensity,
                 'notes': notes
             }
             
@@ -308,22 +613,6 @@ class FitnessApp:
         except Exception as e:
             return False, f"Ошибка при сохранении: {e}"
     
-    def delete_workout(self, username, workout_index):
-        """Удаляет тренировку по индексу"""
-        try:
-            filename = self.get_user_filename(username)
-            if os.path.exists(filename):
-                df = pd.read_csv(filename)
-                if 0 <= workout_index < len(df):
-                    df = df.drop(workout_index).reset_index(drop=True)
-                    df.to_csv(filename, index=False)
-                    return True, "Тренировка удалена! 🗑️"
-                else:
-                    return False, "Тренировка не найдена"
-            return False, "Нет данных для удаления"
-        except Exception as e:
-            return False, f"Ошибка при удалении: {e}"
-    
     def get_all_workouts(self, username):
         """Возвращает все тренировки пользователя"""
         filename = self.get_user_filename(username)
@@ -332,22 +621,7 @@ class FitnessApp:
             df['date'] = pd.to_datetime(df['date'])
             return df.sort_values('date', ascending=False)
         else:
-            return pd.DataFrame(columns=['date', 'exercise', 'weight', 'reps', 'sets', 'notes'])
-    
-    def get_exercise_history(self, username, exercise_name):
-        """Возвращает историю по конкретному упражнению пользователя"""
-        df = self.get_all_workouts(username)
-        if not df.empty:
-            exercise_data = df[df['exercise'] == exercise_name].copy()
-            return exercise_data.sort_values('date')
-        return pd.DataFrame()
-    
-    def get_user_exercises(self, username):
-        """Возвращает список всех уникальных упражнений пользователя"""
-        df = self.get_all_workouts(username)
-        if not df.empty:
-            return df['exercise'].unique().tolist()
-        return []
+            return pd.DataFrame(columns=['date', 'workout_type', 'duration', 'intensity', 'notes'])
     
     def get_statistics(self, username):
         """Возвращает статистику тренировок пользователя"""
@@ -357,14 +631,12 @@ class FitnessApp:
         
         stats = {
             'total_workouts': len(df),
-            'unique_exercises': df['exercise'].nunique(),
-            'max_weight': df['weight'].max(),
-            'avg_weight': df['weight'].mean(),
-            'total_volume': (df['weight'] * df['reps'] * df['sets']).sum(),
+            'total_minutes': df['duration'].sum(),
+            'avg_duration': df['duration'].mean(),
             'workouts_this_month': len(df[df['date'] >= (datetime.now() - timedelta(days=30))]),
-            'favorite_exercise': df['exercise'].mode().iloc[0] if not df['exercise'].mode().empty else "Нет данных",
             'last_workout': df['date'].max() if not df.empty else None,
-            'workout_streak': self.calculate_streak(df)
+            'workout_streak': self.calculate_streak(df),
+            'favorite_workout': df['workout_type'].mode().iloc[0] if not df['workout_type'].mode().empty else "Нет данных"
         }
         return stats
     
@@ -387,53 +659,9 @@ class FitnessApp:
         
         return streak
     
-    def get_recommendations(self, username):
-        """Генерирует рекомендации для пользователя"""
-        profile = self.load_user_profile(username)
-        stats = self.get_statistics(username)
-        workouts = self.get_all_workouts(username)
-        
-        recommendations = []
-        
-        # Если анкета не заполнена
-        if not profile.get('questionnaire_completed', False):
-            recommendations.append({
-                'type': 'questionnaire',
-                'title': '📝 Заполните анкету',
-                'description': 'Заполните анкету для персонализированных рекомендаций',
-                'priority': 'high'
-            })
-        
-        # Рекомендации на основе последней тренировки
-        if not workouts.empty:
-            last_workout = workouts.iloc[0]
-            last_exercise = last_workout['exercise']
-            last_weight = last_workout['weight']
-            
-            recommendations.append({
-                'type': 'progress',
-                'title': '📈 Продолжайте прогресс',
-                'description': f'На следующей тренировке попробуйте {last_exercise} с весом {last_weight + 2.5}кг',
-                'priority': 'medium'
-            })
-        
-        # Рекомендации по регулярности
-        if stats.get('last_workout'):
-            days_since_last = (datetime.now() - stats['last_workout']).days
-            if days_since_last > 3:
-                recommendations.append({
-                    'type': 'consistency',
-                    'title': '⏰ Время тренировки',
-                    'description': f'Прошло {days_since_last} дня с последней тренировки',
-                    'priority': 'high'
-                })
-        
-        return recommendations
-    
     def get_achievements(self, username):
         """Возвращает достижения пользователя"""
         stats = self.get_statistics(username)
-        workouts = self.get_all_workouts(username)
         profile = self.load_user_profile(username)
         
         achievements = []
@@ -457,69 +685,21 @@ class FitnessApp:
                 'unlocked': True
             })
         
-        if stats.get('total_workouts', 0) >= 50:
-            achievements.append({
-                'id': 'veteran',
-                'title': '🏅 Ветеран',
-                'description': '50 выполненных тренировок',
-                'icon': '🏅',
-                'unlocked': True
-            })
-        
-        if stats.get('total_workouts', 0) >= 100:
-            achievements.append({
-                'id': 'centurion_workouts',
-                'title': '💯 Сотня тренировок',
-                'description': '100 выполненных тренировок',
-                'icon': '💯',
-                'unlocked': True
-            })
-        
-        if stats.get('unique_exercises', 0) >= 5:
-            achievements.append({
-                'id': 'versatile',
-                'title': '🎯 Универсал',
-                'description': 'Освоено 5 различных упражнений',
-                'icon': '🎯',
-                'unlocked': True
-            })
-        
-        # Силовые достижения
-        max_weight = stats.get('max_weight', 0)
-        if max_weight >= 50:
-            achievements.append({
-                'id': 'strong_start',
-                'title': '💪 Начало силы',
-                'description': 'Покорен вес 50кг',
-                'icon': '💪',
-                'unlocked': True
-            })
-        
-        if max_weight >= 100:
-            achievements.append({
-                'id': 'centurion_weight',
-                'title': '🏋️‍♂️ Сотня килограммов',
-                'description': 'Покорен вес 100кг',
-                'icon': '🏋️‍♂️',
-                'unlocked': True
-            })
-        
-        # Достижения по регулярности
-        if stats.get('workouts_this_month', 0) >= 8:
+        if stats.get('total_workouts', 0) >= 30:
             achievements.append({
                 'id': 'consistent',
                 'title': '📅 Регулярность',
-                'description': '8+ тренировок за месяц',
+                'description': '30 выполненных тренировок',
                 'icon': '📅',
                 'unlocked': True
             })
         
-        if stats.get('workouts_this_month', 0) >= 12:
+        if stats.get('total_minutes', 0) >= 1000:
             achievements.append({
-                'id': 'hardcore',
-                'title': '⚡ Хардкор',
-                'description': '12+ тренировок за месяц',
-                'icon': '⚡',
+                'id': 'thousand_minutes',
+                'title': '⏱️ 1000 минут',
+                'description': '1000 минут тренировок',
+                'icon': '⏱️',
                 'unlocked': True
             })
         
@@ -541,20 +721,6 @@ class FitnessApp:
                 'unlocked': True
             })
         
-        # Специальные достижения
-        if not workouts.empty:
-            # Достижение за прогресс
-            first_weight = workouts.iloc[-1]['weight'] if len(workouts) > 0 else 0
-            last_weight = workouts.iloc[0]['weight']
-            if last_weight - first_weight >= 20:
-                achievements.append({
-                    'id': 'progress_master',
-                    'title': '🚀 Мастер прогресса',
-                    'description': 'Увеличение веса на 20+ кг',
-                    'icon': '🚀',
-                    'unlocked': True
-                })
-        
         # Достижение за заполнение анкеты
         if profile.get('questionnaire_completed', False):
             achievements.append({
@@ -565,31 +731,23 @@ class FitnessApp:
                 'unlocked': True
             })
         
-        # Достижение за спорт
-        if profile.get('sport_type'):
-            sport_icon = self.sport_types.get(profile['sport_type'], {}).get('icon', '🏆')
-            achievements.append({
-                'id': 'sport_chosen',
-                'title': f'{sport_icon} {profile["sport_type"]}',
-                'description': f'Выбран вид спорта: {profile["sport_type"]}',
-                'icon': sport_icon,
-                'unlocked': True
-            })
-        
-        # Новые достижения
-        if stats.get('total_volume', 0) >= 10000:
-            achievements.append({
-                'id': 'volume_king',
-                'title': '📊 Король объема',
-                'description': '10,000+ кг общего объема',
-                'icon': '📊',
-                'unlocked': True
-            })
+        # Достижение за прогресс по весу
+        if profile.get('personal_info', {}).get('weight') and profile.get('goals', {}).get('target_weight'):
+            current = profile['personal_info']['weight']
+            target = profile['goals']['target_weight']
+            if abs(current - target) <= 2:  # Достигли цели в пределах 2 кг
+                achievements.append({
+                    'id': 'goal_achieved',
+                    'title': '🏆 Цель достигнута!',
+                    'description': f'Достигнут целевой вес {target}кг',
+                    'icon': '🏆',
+                    'unlocked': True
+                })
         
         return achievements
 
 # Инициализация приложения
-app = FitnessApp()
+app = FitnessAssistant()
 
 # Система аутентификации
 def initialize_session_state():
@@ -603,7 +761,6 @@ def initialize_session_state():
         st.session_state.show_registration = False
     if 'show_questionnaire' not in st.session_state:
         st.session_state.show_questionnaire = False
-    # Для навигации по страницам через кнопки
     if 'current_page' not in st.session_state:
         st.session_state.current_page = "📊 Главная"
 
@@ -611,7 +768,7 @@ initialize_session_state()
 
 # Страница входа/регистрации
 if not st.session_state.authenticated:
-    st.markdown('<h1 class="main-header">💪 Фитнес Трекер Pro</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🧘 Фитнес Помощник</h1>', unsafe_allow_html=True)
     
     if st.session_state.show_login:
         # Форма входа
@@ -687,48 +844,72 @@ elif st.session_state.show_questionnaire:
         
         col1, col2 = st.columns(2)
         with col1:
-            height = st.number_input("Рост (см):", min_value=100, max_value=250, value=170)
             age = st.number_input("Возраст:", min_value=10, max_value=100, value=25)
+            height = st.number_input("Рост (см):", min_value=100, max_value=250, value=170)
         with col2:
             weight = st.number_input("Текущий вес (кг):", min_value=30, max_value=200, value=70)
-            gender = st.selectbox("Пол:", ["Мужской", "Женский"])
+            gender = st.selectbox("Пол:", ["Женский", "Мужской"])
         
         st.subheader("🎯 Ваши цели")
-        target_weight = st.number_input("Желаемый рабочий вес (кг):", min_value=0, value=80)
+        
         primary_goal = st.selectbox("Основная цель:", 
-                                  ["Увеличение силы", "Снижение веса", "Набор мышечной массы", 
-                                   "Улучшение выносливости", "Общее оздоровление"])
+                                  ["Похудение", "Набор мышечной массы", "Улучшение выносливости", 
+                                   "Развитие гибкости", "Общее оздоровление"])
         
-        st.subheader("🏆 Вид спорта")
-        st.write("Выберите основной вид активности:")
+        target_weight = st.number_input("Желаемый вес (кг):", min_value=30, max_value=200, value=65)
         
-        # Отображение видов спорта с иконками
-        sport_cols = st.columns(3)
-        sport_options = list(app.sport_types.keys())
+        st.subheader("🏋️‍♀️ Предпочитаемые виды активности")
+        st.write("Выберите виды тренировок, которые вам нравятся:")
         
-        selected_sport = st.selectbox(
-            "Каким видом спорта вы занимаетесь?",
-            sport_options,
-            format_func=lambda x: f"{app.sport_types[x]['icon']} {x}"
+        # Мультивыбор активностей
+        activity_options = list(app.activity_types.keys())
+        activity_names = [app.activity_types[a]['name'] for a in activity_options]
+        
+        selected_indices = st.multiselect(
+            "Выберите предпочитаемые активности:",
+            options=range(len(activity_names)),
+            format_func=lambda x: f"{app.activity_types[activity_options[x]]['icon']} {activity_names[x]}",
+            default=[0, 1, 2]  # По умолчанию йога, пилатес, круговые
         )
         
-        if selected_sport:
-            st.info(f"🎯 **{selected_sport}**: {', '.join(app.sport_types[selected_sport]['goals'][:2])}")
+        preferred_activities = [activity_options[i] for i in selected_indices]
+        
+        st.subheader("📊 Уровень активности")
+        activity_level = st.select_slider(
+            "Как часто вы тренируетесь?",
+            options=["Сидячий", "Легкая активность", "Умеренная", "Высокая", "Очень высокая"],
+            value="Умеренная"
+        )
+        
+        level_mapping = {
+            "Сидячий": "sedentary",
+            "Легкая активность": "light",
+            "Умеренная": "moderate",
+            "Высокая": "active",
+            "Очень высокая": "very_active"
+        }
         
         if st.form_submit_button("✅ Сохранить анкету", use_container_width=True):
             personal_info = {
+                'age': age,
                 'height': height,
                 'weight': weight,
-                'age': age,
-                'gender': gender
+                'gender': gender,
+                'activity_level': level_mapping[activity_level]
             }
             
             goals = {
-                'target_weight': target_weight,
-                'primary_goal': primary_goal
+                'primary_goal': {
+                    'Похудение': 'weight_loss',
+                    'Набор мышечной массы': 'muscle_gain',
+                    'Улучшение выносливости': 'endurance',
+                    'Развитие гибкости': 'flexibility',
+                    'Общее оздоровление': 'health'
+                }[primary_goal],
+                'target_weight': target_weight
             }
             
-            if app.complete_questionnaire(st.session_state.current_user, personal_info, selected_sport, goals):
+            if app.complete_questionnaire(st.session_state.current_user, personal_info, goals, preferred_activities):
                 st.session_state.show_questionnaire = False
                 st.success("✅ Анкета успешно сохранена!")
                 st.balloons()
@@ -743,27 +924,30 @@ else:
     user_profile = app.load_user_profile(st.session_state.current_user)
     
     # Отображение текущего пользователя
-    st.sidebar.markdown(f'<div class="user-card">👤 Пользователь: <b>{st.session_state.current_user}</b></div>', unsafe_allow_html=True)
+    st.sidebar.markdown(f'<div class="user-card">👤 {st.session_state.current_user}</div>', unsafe_allow_html=True)
     
-    # Показываем спорт пользователя
-    if user_profile.get('sport_type'):
-        sport_info = app.sport_types.get(user_profile['sport_type'], {})
-        st.sidebar.markdown(f'<div class="sport-icon">{sport_info.get("icon", "🏆")} {user_profile["sport_type"]}</div>', unsafe_allow_html=True)
+    # Показываем цель пользователя
+    if user_profile.get('goals', {}).get('primary_goal'):
+        goal_info = app.goals.get(user_profile['goals']['primary_goal'], {})
+        if goal_info:
+            st.sidebar.markdown(f"""
+            <div style='text-align: center; margin: 1rem 0;'>
+                <span class='sport-icon'>{goal_info['icon']}</span>
+                <h4>{goal_info['name']}</h4>
+                <span class='goal-badge {goal_info["color"]}'>{goal_info['description']}</span>
+            </div>
+            """, unsafe_allow_html=True)
     
-    # Основная навигация - теперь используем состояние для переключения
+    # Основная навигация
     with st.sidebar:
         st.title("Навигация")
         
-        # Обновляем текущую страницу при выборе в радио
         page = st.radio(
             "Выберите раздел:",
-            ["📊 Главная", "👤 Мой профиль", "➕ Новая тренировка", "📋 Мои тренировки", 
-             "📈 Анализ прогресса", "🤖 Умные прогнозы", "🏆 Достижения", "🔄 Демо-данные"],
-            index=["📊 Главная", "👤 Мой профиль", "➕ Новая тренировка", "📋 Мои тренировки", 
-                   "📈 Анализ прогресса", "🤖 Умные прогнозы", "🏆 Достижения", "🔄 Демо-данные"].index(st.session_state.current_page)
+            ["📊 Главная", "🎯 Мои программы", "➕ Добавить тренировку", "📈 Мой прогресс", "🏆 Достижения", "👤 Мой профиль"],
+            index=["📊 Главная", "🎯 Мои программы", "➕ Добавить тренировку", "📈 Мой прогресс", "🏆 Достижения", "👤 Мой профиль"].index(st.session_state.current_page)
         )
         
-        # Обновляем состояние при изменении радио
         if page != st.session_state.current_page:
             st.session_state.current_page = page
             st.rerun()
@@ -774,7 +958,7 @@ else:
         stats = app.get_statistics(st.session_state.current_user)
         if stats:
             st.metric("Всего тренировок", stats['total_workouts'])
-            st.metric("Упражнений", stats['unique_exercises'])
+            st.metric("Общее время", f"{int(stats['total_minutes'])} мин")
             st.metric("Серия", f"{stats.get('workout_streak', 0)} дней")
         
         st.markdown("---")
@@ -791,524 +975,278 @@ else:
     if st.session_state.current_page == "📊 Главная":
         st.markdown(f'<h2 class="sub-header">🏠 Добро пожаловать, {st.session_state.current_user}!</h2>', unsafe_allow_html=True)
         
-        # Быстрая статистика
+        if not user_profile.get('questionnaire_completed', False):
+            st.warning("""
+            ⚠️ **Анкета не заполнена!**
+            
+            Для получения персонализированных рекомендаций заполните анкету.
+            """)
+            if st.button("📝 Заполнить анкету", use_container_width=True):
+                st.session_state.show_questionnaire = True
+                st.rerun()
+        else:
+            # Персональная информация
+            personal_info = user_profile.get('personal_info', {})
+            goals = user_profile.get('goals', {})
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown('<div class="progress-card">', unsafe_allow_html=True)
+                st.metric("Текущий вес", f"{personal_info.get('weight', 0)} кг")
+                st.metric("Целевой вес", f"{goals.get('target_weight', 0)} кг")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown('<div class="progress-card">', unsafe_allow_html=True)
+                bmi = user_profile.get('bmi', 0)
+                bmi_category = user_profile.get('bmi_category', '')
+                st.metric("ИМТ", f"{bmi}")
+                st.caption(f"Категория: {bmi_category}")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown('<div class="progress-card">', unsafe_allow_html=True)
+                calories_needed, tdee = app.calculate_calories_needed(user_profile)
+                st.metric("Калории в день", f"{calories_needed}")
+                st.caption(f"Расход: {tdee} ккал")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Рекомендуемые программы на основе ML
+            st.markdown("### 🎯 Персональные рекомендации")
+            
+            recommended_programs = app.recommend_programs_based_on_profile(user_profile)
+            
+            if recommended_programs:
+                for program in recommended_programs:
+                    with st.container():
+                        # Получаем информацию об активностях
+                        activity_icons = ""
+                        for activity_id in program.get('activities', []):
+                            activity = app.activity_types.get(activity_id, {})
+                            activity_icons += f"{activity.get('icon', '🏃')} "
+                        
+                        st.markdown(f"""
+                        <div class="training-card">
+                            <h3>{activity_icons} {program['name']}</h3>
+                            <p><strong>Уровень:</strong> {program['level']} | <strong>Продолжительность:</strong> {program['duration_weeks']} недель</p>
+                            <p>{program['description']}</p>
+                            <p><strong>Расписание:</strong></p>
+                            <ul>
+                        """, unsafe_allow_html=True)
+                        
+                        for session in program.get('schedule', []):
+                            st.markdown(f"<li>{session}</li>", unsafe_allow_html=True)
+                        
+                        st.markdown("</ul>", unsafe_allow_html=True)
+                        
+                        # Советы по питанию
+                        if 'nutrition_tips' in program:
+                            st.markdown("<p><strong>Советы по питанию:</strong></p><ul>", unsafe_allow_html=True)
+                            for tip in program['nutrition_tips']:
+                                st.markdown(f"<li>{tip}</li>", unsafe_allow_html=True)
+                            st.markdown("</ul>", unsafe_allow_html=True)
+                        
+                        # Кнопка для выбора программы
+                        if st.button(f"🎯 Выбрать эту программу", key=f"select_{program['id']}", use_container_width=True):
+                            st.success(f"✅ Программа '{program['name']}' выбрана!")
+            else:
+                st.info("""
+                💡 **Рекомендации появятся после заполнения анкеты.**
+                
+                Наш ИИ анализирует ваши данные и подбирает оптимальные тренировочные программы.
+                """)
+            
+            # Быстрые действия
+            st.markdown("### ⚡ Быстрые действия")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.button("➕ Добавить тренировку", use_container_width=True):
+                    st.session_state.current_page = "➕ Добавить тренировку"
+                    st.rerun()
+            with col2:
+                if st.button("📈 Мой прогресс", use_container_width=True):
+                    st.session_state.current_page = "📈 Мой прогресс"
+                    st.rerun()
+            with col3:
+                if st.button("🏆 Мои достижения", use_container_width=True):
+                    st.session_state.current_page = "🏆 Достижения"
+                    st.rerun()
+
+    # Мои программы
+    elif st.session_state.current_page == "🎯 Мои программы":
+        st.markdown('<h2 class="sub-header">🎯 Мои тренировочные программы</h2>', unsafe_allow_html=True)
+        
+        if not user_profile.get('questionnaire_completed', False):
+            st.warning("Заполните анкету для получения персональных программ")
+        else:
+            # Показываем все программы для цели пользователя
+            goal = user_profile.get('goals', {}).get('primary_goal', 'weight_loss')
+            goal_programs = app.training_programs.get(goal, [])
+            
+            if goal_programs:
+                st.success(f"📊 Найдено {len(goal_programs)} программ для вашей цели")
+                
+                for program in goal_programs:
+                    with st.expander(f"{program['name']} ({program['level']})"):
+                        col1, col2 = st.columns([2, 1])
+                        
+                        with col1:
+                            st.write(f"**Описание:** {program['description']}")
+                            st.write(f"**Продолжительность:** {program['duration_weeks']} недель")
+                            st.write(f"**Тренировок в неделю:** {program['sessions_per_week']}")
+                            st.write(f"**Длительность тренировки:** {program['session_duration']} минут")
+                            
+                            st.write("**Расписание:**")
+                            for session in program.get('schedule', []):
+                                st.write(f"- {session}")
+                        
+                        with col2:
+                            # Показываем иконки активностей
+                            st.write("**Активности:**")
+                            for activity_id in program.get('activities', []):
+                                activity = app.activity_types.get(activity_id, {})
+                                st.write(f"{activity.get('icon', '🏃')} {activity.get('name', activity_id)}")
+                            
+                            if st.button(f"✅ Начать программу", key=f"start_{program['id']}"):
+                                st.success(f"Программа '{program['name']}' начата!")
+            else:
+                st.info("Программы для вашей цели находятся в разработке. Скоро появятся!")
+
+    # Добавление тренировки
+    elif st.session_state.current_page == "➕ Добавить тренировку":
+        st.markdown('<h2 class="sub-header">➕ Добавить тренировку</h2>', unsafe_allow_html=True)
+        
+        with st.form("add_workout_form"):
+            # Получаем доступные виды тренировок из предпочитаемых активностей
+            preferred_activities = user_profile.get('preferred_activities', [])
+            
+            if preferred_activities:
+                workout_options = []
+                for activity_id in preferred_activities:
+                    activity = app.activity_types.get(activity_id, {})
+                    workout_options.append(f"{activity.get('icon', '🏃')} {activity.get('name', activity_id)}")
+                
+                workout_type = st.selectbox(
+                    "Вид тренировки:",
+                    options=workout_options
+                )
+            else:
+                workout_type = st.text_input("Вид тренировки:", placeholder="Например: Йога, Бег, Пилатес...")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                duration = st.number_input("Длительность (минут):", min_value=5, max_value=180, value=45)
+            with col2:
+                intensity = st.select_slider(
+                    "Интенсивность:",
+                    options=["Очень легкая", "Легкая", "Средняя", "Высокая", "Очень высокая"],
+                    value="Средняя"
+                )
+            
+            notes = st.text_area("Заметки:", placeholder="Как прошла тренировка? Что понравилось?")
+            
+            if st.form_submit_button("💾 Сохранить тренировку", use_container_width=True):
+                # Извлекаем тип тренировки без иконки
+                if preferred_activities:
+                    workout_type_clean = workout_type.split(" ", 1)[1]
+                else:
+                    workout_type_clean = workout_type
+                
+                success, message = app.add_workout(
+                    st.session_state.current_user, 
+                    workout_type_clean, 
+                    duration, 
+                    intensity, 
+                    notes
+                )
+                
+                if success:
+                    st.success(message)
+                    st.balloons()
+                    st.rerun()
+                else:
+                    st.error(message)
+
+    # Мой прогресс
+    elif st.session_state.current_page == "📈 Мой прогресс":
+        st.markdown('<h2 class="sub-header">📈 Мой прогресс</h2>', unsafe_allow_html=True)
+        
+        # Статистика тренировок
         stats = app.get_statistics(st.session_state.current_user)
+        workouts = app.get_all_workouts(st.session_state.current_user)
         
         if stats:
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("Всего тренировок", stats['total_workouts'])
             with col2:
-                st.metric("Упражнений", stats['unique_exercises'])
+                st.metric("Общее время", f"{int(stats['total_minutes'])} мин")
             with col3:
-                st.metric("Макс. вес", f"{stats['max_weight']:.1f} кг")
+                st.metric("Средняя длительность", f"{stats['avg_duration']:.0f} мин")
             with col4:
-                st.metric("Серия", f"{stats.get('workout_streak', 0)} дней")
+                st.metric("Текущая серия", f"{stats.get('workout_streak', 0)} дней")
         
-        # Рекомендации тренировок на основе вида спорта
-        st.markdown("### 🎯 Рекомендуемые тренировки")
-        
-        if user_profile.get('sport_type'):
-            sport_type = user_profile['sport_type']
-            recommended_trainings = app.get_recommended_trainings(st.session_state.current_user)
-            
-            if recommended_trainings:
-                for training in recommended_trainings[:2]:  # Показываем 2 программы
-                    with st.container():
-                        st.markdown(f"""
-                        <div class="training-card">
-                            <h4>🏋️ {training['name']} ({training['level']})</h4>
-                            <p>{training['description']}</p>
-                            <p><strong>Упражнения:</strong> {', '.join(training['exercises'])}</p>
-                            <a href="{training.get('video_link', '#')}" target="_blank">📹 Посмотреть видео</a>
-                        </div>
-                        """, unsafe_allow_html=True)
-            else:
-                st.info(f"💡 Для {sport_type} мы готовим программы тренировок. Скоро они появятся!")
-        else:
-            st.info("💡 Заполните анкету, чтобы получить персональные рекомендации тренировок!")
-        
-        # Персональные рекомендации
-        recommendations = app.get_recommendations(st.session_state.current_user)
-        
-        if recommendations:
-            st.markdown("### 💡 Персональные рекомендации")
-            for rec in recommendations[:3]:
-                priority_color = "🔴" if rec['priority'] == 'high' else "🟡" if rec['priority'] == 'medium' else "🟢"
-                st.markdown(f"""
-                <div class="recommendation-card">
-                    <h4>{priority_color} {rec['title']}</h4>
-                    <p>{rec['description']}</p>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        # Последние тренировки
-        st.markdown("### 📋 Последние тренировки")
-        workouts = app.get_all_workouts(st.session_state.current_user)
-        
+        # График тренировок
         if not workouts.empty:
-            recent_workouts = workouts.head(3)
-            for _, workout in recent_workouts.iterrows():
-                with st.container():
-                    col1, col2, col3 = st.columns([2, 1, 1])
-                    with col1:
-                        st.markdown(f"**{workout['exercise']}**")
-                        if workout['notes']:
-                            st.caption(f"💬 {workout['notes']}")
-                    with col2:
-                        st.markdown(f"**{workout['weight']}кг** × {workout['reps']} × {workout['sets']}")
-                    with col3:
-                        st.caption(workout['date'].strftime('%d.%m.%Y'))
-                    st.markdown("---")
+            st.markdown("### 📊 График активности")
             
-            if st.button("📋 Показать все тренировки"):
-                st.session_state.current_page = "📋 Мои тренировки"
-                st.rerun()
+            # Группируем по дням
+            workouts['date_only'] = workouts['date'].dt.date
+            daily_workouts = workouts.groupby('date_only').agg({
+                'duration': 'sum',
+                'workout_type': 'count'
+            }).reset_index()
+            daily_workouts.columns = ['date', 'total_minutes', 'workout_count']
+            
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+            
+            # График 1: Длительность тренировок по дням
+            ax1.bar(daily_workouts['date'], daily_workouts['total_minutes'], color='#4CAF50')
+            ax1.set_title('Длительность тренировок по дням', fontsize=14, fontweight='bold')
+            ax1.set_ylabel('Минуты')
+            ax1.grid(True, alpha=0.3)
+            plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45)
+            
+            # График 2: Количество тренировок по дням
+            ax2.bar(daily_workouts['date'], daily_workouts['workout_count'], color='#2196F3')
+            ax2.set_title('Количество тренировок по дням', fontsize=14, fontweight='bold')
+            ax2.set_ylabel('Тренировки')
+            ax2.set_xlabel('Дата')
+            ax2.grid(True, alpha=0.3)
+            plt.setp(ax2.xaxis.get_majorticklabels(), rotation=45)
+            
+            plt.tight_layout()
+            st.pyplot(fig)
+            
+            # Таблица последних тренировок
+            st.markdown("### 📋 История тренировок")
+            recent_workouts = workouts.head(10).copy()
+            recent_workouts['date'] = recent_workouts['date'].dt.strftime('%d.%m.%Y %H:%M')
+            st.dataframe(recent_workouts[['date', 'workout_type', 'duration', 'intensity', 'notes']], 
+                        use_container_width=True, hide_index=True)
         else:
-            st.info("🎯 У вас пока нет тренировок. Добавьте первую!")
-        
-        # Быстрые действия (РАБОЧИЕ КНОПКИ)
-        st.markdown("### ⚡ Быстрые действия")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("➕ Добавить тренировку", use_container_width=True):
-                st.session_state.current_page = "➕ Новая тренировка"
-                st.rerun()
-        with col2:
-            if st.button("📊 Анализ прогресса", use_container_width=True):
-                st.session_state.current_page = "📈 Анализ прогресса"
-                st.rerun()
-        with col3:
-            if st.button("🤖 Умные прогнозы", use_container_width=True):
-                st.session_state.current_page = "🤖 Умные прогнозы"
-                st.rerun()
-
-    # Мой профиль
-    elif st.session_state.current_page == "👤 Мой профиль":
-        st.markdown('<h2 class="sub-header">👤 Мой профиль</h2>', unsafe_allow_html=True)
-        
-        with st.form("profile_form"):
-            st.subheader("📏 Личные параметры")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                height = st.number_input("Рост (см):", min_value=100, max_value=250, 
-                                       value=user_profile.get('personal_info', {}).get('height', 170))
-                age = st.number_input("Возраст:", min_value=10, max_value=100, 
-                                    value=user_profile.get('personal_info', {}).get('age', 25))
-            with col2:
-                weight = st.number_input("Вес (кг):", min_value=30, max_value=200, 
-                                       value=user_profile.get('personal_info', {}).get('weight', 70))
-                gender = st.selectbox("Пол:", ["Мужской", "Женский"], 
-                                    index=0 if user_profile.get('personal_info', {}).get('gender') == "Мужской" else 1)
-            
-            st.subheader("🎯 Мои цели")
-            target_weight = st.number_input("Целевой вес в упражнениях (кг):", min_value=0, 
-                                          value=user_profile.get('goals', {}).get('target_weight', 0))
-            
-            st.subheader("🏆 Вид спорта")
-            current_sport = user_profile.get('sport_type', 'Силовые тренировки')
-            sport_options = list(app.sport_types.keys())
-            new_sport = st.selectbox(
-                "Основной вид активности:",
-                sport_options,
-                index=sport_options.index(current_sport) if current_sport in sport_options else 0,
-                format_func=lambda x: f"{app.sport_types[x]['icon']} {x}"
-            )
-            
-            if st.form_submit_button("💾 Сохранить изменения", use_container_width=True):
-                personal_info = {
-                    'height': height,
-                    'weight': weight,
-                    'age': age,
-                    'gender': gender
-                }
-                goals = {
-                    'target_weight': target_weight,
-                    'primary_goal': user_profile.get('goals', {}).get('primary_goal', 'Увеличение силы')
-                }
-                
-                # Обновляем анкету
-                if app.complete_questionnaire(st.session_state.current_user, personal_info, new_sport, goals):
-                    st.success("✅ Профиль успешно обновлен!")
-                    st.rerun()
-                else:
-                    st.error("❌ Ошибка сохранения профиля")
-
-    # Добавление тренировки
-    elif st.session_state.current_page == "➕ Новая тренировка":
-        st.markdown(f'<h2 class="sub-header">➕ Новая тренировка</h2>', unsafe_allow_html=True)
-        
-        # Получаем рекомендуемые упражнения для вида спорта
-        sport_type = user_profile.get('sport_type', 'Силовые тренировки')
-        recommended_exercises = app.sport_types.get(sport_type, {}).get('exercises', [])
-        
-        if 'workout_data' not in st.session_state:
-            st.session_state.workout_data = {
-                'exercise': '',
-                'weight': 50.0,
-                'reps': 8,
-                'sets': 4,
-                'notes': ''
-            }
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("Основные данные")
-            
-            st.write(f"**Рекомендуемые для {sport_type}:**")
-            preset_cols = st.columns(min(5, len(recommended_exercises)))
-            
-            for i, exercise in enumerate(recommended_exercises[:5]):
-                with preset_cols[i % 5]:
-                    if st.button(exercise[:10], key=f"preset_{i}", help=exercise):
-                        st.session_state.workout_data['exercise'] = exercise
-                        st.rerun()
-            
-            exercise = st.text_input(
-                "Упражнение 🏋️",
-                value=st.session_state.workout_data['exercise'],
-                placeholder="Введите название упражнения...",
-                key="exercise_input"
-            )
-            
-            weight = st.number_input(
-                "Вес (кг) ⚖️", 
-                min_value=0.0, 
-                step=0.5,
-                value=st.session_state.workout_data['weight'],
-                key="weight_input"
-            )
-        
-        with col2:
-            st.subheader("Параметры")
-            reps = st.number_input(
-                "Количество повторений 🔁", 
-                min_value=1, 
-                step=1,
-                value=st.session_state.workout_data['reps'],
-                key="reps_input"
-            )
-            
-            sets = st.number_input(
-                "Количество подходов 📊", 
-                min_value=1, 
-                step=1,
-                value=st.session_state.workout_data['sets'],
-                key="sets_input"
-            )
-        
-        notes = st.text_area(
-            "Заметки к тренировке 📝", 
-            value=st.session_state.workout_data['notes'],
-            placeholder="Опишите как прошла тренировка...",
-            height=100,
-            key="notes_input"
-        )
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("💾 Сохранить тренировку", use_container_width=True, type="primary"):
-                if exercise and weight > 0 and reps > 0 and sets > 0:
-                    success, message = app.add_workout(
-                        st.session_state.current_user, exercise, weight, reps, sets, notes
-                    )
-                    if success:
-                        st.success(message)
-                        st.balloons()
-                        st.session_state.workout_data = {'exercise': '', 'weight': 50.0, 'reps': 8, 'sets': 4, 'notes': ''}
-                        st.rerun()
-                    else:
-                        st.error(message)
-                else:
-                    st.error("❌ Заполните все обязательные поля!")
-        
-        with col2:
-            if st.button("🏠 На главную", use_container_width=True):
-                st.session_state.current_page = "📊 Главная"
-                st.rerun()
-
-    # Мои тренировки
-    elif st.session_state.current_page == "📋 Мои тренировки":
-        st.markdown(f'<h2 class="sub-header">📋 Мои тренировки</h2>', unsafe_allow_html=True)
-        
-        df = app.get_all_workouts(st.session_state.current_user)
-        
-        if df.empty:
             st.info("📝 У вас пока нет тренировок. Добавьте первую!")
-        else:
-            st.info(f"🎯 Всего тренировок: {len(df)}")
-            
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                search_exercise = st.text_input("🔍 Поиск по упражнению:", placeholder="Введите название упражнения...")
-            with col2:
-                show_count = st.selectbox("Показывать:", [10, 25, 50, "Все"])
-            
-            display_df = df.copy()
-            if search_exercise:
-                display_df = display_df[display_df['exercise'].str.contains(search_exercise, case=False, na=False)]
-            
-            if show_count != "Все":
-                display_df = display_df.head(show_count)
-            
-            display_df = display_df.reset_index(drop=True)
-            display_df['date'] = display_df['date'].dt.strftime('%d.%m.%Y %H:%M')
-            display_df['volume'] = display_df['weight'] * display_df['reps'] * display_df['sets']
-            
-            for idx, workout in display_df.iterrows():
-                with st.container():
-                    col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
-                    with col1:
-                        st.markdown(f"**{workout['exercise']}**")
-                        if workout['notes']:
-                            st.caption(f"💬 {workout['notes']}")
-                        st.caption(f"📅 {workout['date']}")
-                    with col2:
-                        st.markdown(f"**{workout['weight']}кг** × {workout['reps']} × {workout['sets']}")
-                    with col3:
-                        st.markdown(f"**Объем:** {workout['volume']:.0f} кг")
-                    with col4:
-                        if st.button("🗑️", key=f"delete_{idx}", help="Удалить тренировку"):
-                            success, message = app.delete_workout(st.session_state.current_user, idx)
-                            if success:
-                                st.success(message)
-                                st.rerun()
-                            else:
-                                st.error(message)
-                    st.markdown("---")
 
-    # Анализ прогресса
-    elif st.session_state.current_page == "📈 Анализ прогресса":
-        st.markdown(f'<h2 class="sub-header">📈 Анализ прогресса</h2>', unsafe_allow_html=True)
-        
-        df = app.get_all_workouts(st.session_state.current_user)
-        
-        if df.empty:
-            st.warning("📝 Нет данных для анализа. Добавьте несколько тренировок!")
-        else:
-            exercises = app.get_user_exercises(st.session_state.current_user)
-            
-            col1, col2 = st.columns([1, 2])
-            
-            with col1:
-                selected_exercise = st.selectbox("Выберите упражнение для анализа:", exercises, index=0)
-                
-                if selected_exercise:
-                    exercise_data = app.get_exercise_history(st.session_state.current_user, selected_exercise)
-                    
-                    if not exercise_data.empty:
-                        st.markdown("### 📊 Статистика")
-                        max_weight = exercise_data['weight'].max()
-                        min_weight = exercise_data['weight'].min()
-                        avg_weight = exercise_data['weight'].mean()
-                        workouts_count = len(exercise_data)
-                        total_volume = (exercise_data['weight'] * exercise_data['reps'] * exercise_data['sets']).sum()
-                        progress = max_weight - min_weight
-                        
-                        st.metric("Максимальный вес", f"{max_weight:.1f} кг")
-                        st.metric("Средний вес", f"{avg_weight:.1f} кг")
-                        st.metric("Количество тренировок", workouts_count)
-                        st.metric("Общий объем", f"{total_volume:.0f} кг")
-                        
-                        if progress > 0:
-                            st.success(f"📈 Общий прогресс: +{progress:.1f} кг")
-                        else:
-                            st.info("📊 Прогресс: 0 кг")
-            
-            with col2:
-                if selected_exercise and not exercise_data.empty:
-                    st.markdown("### 📈 График прогресса")
-                    
-                    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
-                    
-                    ax1.plot(exercise_data['date'], exercise_data['weight'], 'o-', linewidth=2, markersize=6, color='#1f77b4')
-                    ax1.set_title(f'Прогресс в упражнении: {selected_exercise}', fontsize=14, fontweight='bold')
-                    ax1.set_ylabel('Вес (кг)', fontsize=12)
-                    ax1.grid(True, alpha=0.3)
-                    ax1.tick_params(axis='x', rotation=45)
-                    
-                    exercise_data['volume'] = exercise_data['weight'] * exercise_data['reps'] * exercise_data['sets']
-                    ax2.plot(exercise_data['date'], exercise_data['volume'], 's-', linewidth=2, markersize=6, color='#ff7f0e')
-                    ax2.set_title(f'Объем тренировок: {selected_exercise}', fontsize=14, fontweight='bold')
-                    ax2.set_xlabel('Дата', fontsize=12)
-                    ax2.set_ylabel('Объем (кг)', fontsize=12)
-                    ax2.grid(True, alpha=0.3)
-                    ax2.tick_params(axis='x', rotation=45)
-                    
-                    plt.tight_layout()
-                    st.pyplot(fig)
-
-    # Умные прогнозы (ТОЛЬКО 1 МЕСЯЦ + РЕАЛЬНЫЕ ДАННЫЕ)
-    elif st.session_state.current_page == "🤖 Умные прогнозы":
-        st.markdown(f'<h2 class="sub-header">🤖 Умные прогнозы</h2>', unsafe_allow_html=True)
-        
-        df = app.get_all_workouts(st.session_state.current_user)
-        
-        if len(df) < 5:  # Увеличили до 5 тренировок для лучшего прогноза
-            st.warning("""
-            ⚠️ Для точных прогнозов нужно минимум 5 тренировок по одному упражнению.
-            
-            **Что делать:**
-            1. Добавьте больше тренировок через раздел "➕ Новая тренировка"
-            2. Или создайте демо-данные через раздел "🔄 Демо-данные"
-            """)
-        else:
-            exercises = app.get_user_exercises(st.session_state.current_user)
-            selected_exercise = st.selectbox(
-                "Выберите упражнение для прогноза:",
-                exercises,
-                key="ml_exercise"
-            )
-            
-            if selected_exercise:
-                exercise_data = app.get_exercise_history(st.session_state.current_user, selected_exercise)
-                
-                if len(exercise_data) >= 5:
-                    # Подготовка данных с реальными примерами
-                    exercise_data = exercise_data.copy()
-                    exercise_data = exercise_data.sort_values('date')
-                    exercise_data['days_passed'] = (exercise_data['date'] - exercise_data['date'].min()).dt.days
-                    
-                    # Используем полиномиальную регрессию для лучшего прогноза
-                    X = exercise_data[['days_passed']].values
-                    y = exercise_data['weight'].values
-                    
-                    # Создаем полиномиальные признаки
-                    X_poly = np.column_stack([X, X**2])  # Добавляем квадратичный член
-                    
-                    model = LinearRegression()
-                    model.fit(X_poly, y)
-                    
-                    # Прогноз на 1 месяц
-                    last_day = exercise_data['days_passed'].max()
-                    days_in_month = 30
-                    future_day = last_day + days_in_month
-                    
-                    # Создаем полиномиальные признаки для прогноза
-                    future_X = np.array([[future_day, future_day**2]])
-                    predicted_weight = model.predict(future_X)[0]
-                    
-                    # Текущие показатели
-                    current_weight = exercise_data['weight'].iloc[-1]
-                    progress_rate = (current_weight - exercise_data['weight'].iloc[0]) / len(exercise_data) if len(exercise_data) > 0 else 0
-                    
-                    # Отображение прогноза
-                    st.markdown("### 📊 Прогноз на 1 месяц")
-                    
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        delta = predicted_weight - current_weight
-                        st.metric(
-                            "Прогноз через 1 месяц",
-                            f"{predicted_weight:.1f} кг",
-                            delta=f"{delta:.1f} кг",
-                            delta_color="normal" if delta > 0 else "off"
-                        )
-                    
-                    with col2:
-                        st.metric(
-                            "Текущий вес",
-                            f"{current_weight:.1f} кг",
-                            delta=f"{progress_rate:.2f} кг/тренировка" if progress_rate > 0 else "0 кг/тренировка"
-                        )
-                    
-                    # Детальный анализ
-                    st.markdown("### 📈 Детальный анализ")
-                    
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.info(f"""
-                        **Анализ прогресса:**
-                        - Начальный вес: {exercise_data['weight'].iloc[0]:.1f} кг
-                        - Текущий вес: {current_weight:.1f} кг
-                        - Всего тренировок: {len(exercise_data)}
-                        - Средний прирост: {progress_rate:.2f} кг/тренировка
-                        """)
-                    
-                    with col2:
-                        if delta > 0:
-                            st.success(f"""
-                            **Прогноз положительный!** 🎉
-                            - Ожидаемый прирост: {delta:.1f} кг за месяц
-                            - Рекомендуемый вес на следующей тренировке: {current_weight + 2.5:.1f} кг
-                            """)
-                        else:
-                            st.warning("""
-                            **Прогноз стабильный** ⚠️
-                            - Рекомендуется увеличить интенсивность
-                            - Рассмотрите изменение программы тренировок
-                            """)
-                    
-                    # График с прогнозом
-                    st.markdown("### 📊 График прогресса с прогнозом")
-                    
-                    # Создаем точки для прогноза
-                    future_days = np.linspace(last_day, future_day, 5)
-                    future_X_plot = np.column_stack([future_days, future_days**2])
-                    future_predictions = model.predict(future_X_plot)
-                    
-                    fig, ax = plt.subplots(figsize=(12, 6))
-                    
-                    # Исторические данные
-                    ax.plot(exercise_data['days_passed'], exercise_data['weight'], 'o-', 
-                           linewidth=2, markersize=6, label='Исторические данные', color='#1f77b4')
-                    
-                    # Прогноз
-                    ax.plot(future_days, future_predictions, '--', 
-                           linewidth=2, label='Прогноз на 1 месяц', color='#ff7f0e')
-                    
-                    ax.set_title(f'Прогресс и прогноз для {selected_exercise}', fontsize=14, fontweight='bold')
-                    ax.set_xlabel('Дни с первой тренировки')
-                    ax.set_ylabel('Вес (кг)')
-                    ax.legend()
-                    ax.grid(True, alpha=0.3)
-                    plt.tight_layout()
-                    
-                    st.pyplot(fig)
-                    
-                    # Рекомендации на основе реальных данных
-                    st.markdown("### 💡 Рекомендации на основе ваших данных")
-                    
-                    if progress_rate > 0.3:
-                        st.success("""
-                        **Отличный прогресс!** 🚀
-                        - Продолжайте текущую программу
-                        - Увеличивайте вес на 2.5-5 кг каждые 2 недели
-                        - Следите за восстановлением
-                        """)
-                    elif progress_rate > 0.1:
-                        st.info("""
-                        **Хороший стабильный прогресс** 📈
-                        - Увеличивайте вес на 1-2.5 кг каждые 2-3 тренировки
-                        - Добавьте вспомогательные упражнения
-                        """)
-                    else:
-                        st.warning("""
-                        **Прогресс замедлился** ⚡
-                        - Рекомендуется изменить программу тренировок
-                        - Увеличьте частоту тренировок до 3-4 раз в неделю
-                        - Проверьте питание и сон
-                        """)
-                else:
-                    st.warning(f"Для упражнения '{selected_exercise}' нужно минимум 5 тренировок для точного прогноза. Сейчас: {len(exercise_data)}")
-
-    # Достижения (ПОЛНАЯ ВЕРСИЯ)
+    # Достижения
     elif st.session_state.current_page == "🏆 Достижения":
-        st.markdown(f'<h2 class="sub-header">🏆 Мои достижения</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 class="sub-header">🏆 Мои достижения</h2>', unsafe_allow_html=True)
         
         achievements = app.get_achievements(st.session_state.current_user)
         stats = app.get_statistics(st.session_state.current_user)
         
         if achievements:
             unlocked = [a for a in achievements if a.get('unlocked', False)]
-            locked = [a for a in achievements if not a.get('unlocked', False)]
+            total = len(achievements)
             
-            st.success(f"🎉 У вас {len(unlocked)} из {len(achievements)} достижений!")
+            st.success(f"🎉 У вас {len(unlocked)} из {total} достижений!")
             
+            # Прогресс-бар
+            progress = len(unlocked) / total * 100
+            st.progress(int(progress))
+            st.caption(f"Прогресс: {len(unlocked)}/{total} ({progress:.1f}%)")
+            
+            # Отображение достижений
             st.markdown("### 🏆 Полученные достижения")
             if unlocked:
                 cols = st.columns(3)
@@ -1322,26 +1260,21 @@ else:
                         </div>
                         """, unsafe_allow_html=True)
             
-            # Показываем ближайшие цели
+            # Ближайшие цели
             if stats:
                 st.markdown("### 🎯 Ближайшие цели")
                 goals_data = []
                 
                 if stats['total_workouts'] < 10:
                     goals_data.append(["🔥 Посвящение", f"{stats['total_workouts']}/10", "10 тренировок"])
-                elif stats['total_workouts'] < 50:
-                    goals_data.append(["🏅 Ветеран", f"{stats['total_workouts']}/50", "50 тренировок"])
-                elif stats['total_workouts'] < 100:
-                    goals_data.append(["💯 Сотня тренировок", f"{stats['total_workouts']}/100", "100 тренировок"])
+                elif stats['total_workouts'] < 30:
+                    goals_data.append(["📅 Регулярность", f"{stats['total_workouts']}/30", "30 тренировок"])
                 
-                max_weight = stats.get('max_weight', 0)
-                if max_weight < 50:
-                    goals_data.append(["💪 Начало силы", f"{max_weight:.1f}/50", f"{50 - max_weight:.1f} кг"])
-                elif max_weight < 100:
-                    goals_data.append(["🏋️‍♂️ Сотня килограммов", f"{max_weight:.1f}/100", f"{100 - max_weight:.1f} кг"])
+                if stats.get('total_minutes', 0) < 1000:
+                    goals_data.append(["⏱️ 1000 минут", f"{int(stats['total_minutes'])}/1000", "1000 минут тренировок"])
                 
                 if stats.get('workout_streak', 0) < 7:
-                    goals_data.append(["📆 Недельная серия", f"{stats['workout_streak']}/7", f"{7 - stats['workout_streak']} дней"])
+                    goals_data.append(["📆 Недельная серия", f"{stats['workout_streak']}/7", "7 дней подряд"])
                 
                 if goals_data:
                     goals_df = pd.DataFrame(goals_data, columns=['Достижение', 'Прогресс', 'Осталось'])
@@ -1350,116 +1283,98 @@ else:
                     st.success("🎊 Все основные цели достигнуты! Вы настоящий чемпион! 🏆")
         else:
             st.info("""
-            **Начните тренироваться чтобы получить достижения!** 🏋️
+            **Начните тренироваться чтобы получить достижения!** 🏋️‍♀️
             
             **Доступные достижения:**
             🎖️ **Первая тренировка** - Выполните первую тренировку
             🔥 **Посвящение** - 10 тренировок
-            🏅 **Ветеран** - 50 тренировок
-            💯 **Сотня тренировок** - 100 тренировок
-            🎯 **Универсал** - 5 различных упражнений
-            💪 **Начало силы** - Покорите вес 50кг
-            🏋️‍♂️ **Сотня килограммов** - Покорите вес 100кг
-            📅 **Регулярность** - 8+ тренировок за месяц
-            ⚡ **Хардкор** - 12+ тренировок за месяц
+            📅 **Регулярность** - 30 тренировок
+            ⏱️ **1000 минут** - 1000 минут тренировок
             📆 **Недельная серия** - 7 тренировок подряд
             🌟 **Месячная серия** - 30 тренировок подряд
-            🚀 **Мастер прогресса** - Увеличение веса на 20+ кг
             📝 **Анкета заполнена** - Заполнение анкеты
-            📊 **Король объема** - 10,000+ кг общего объема
+            🏆 **Цель достигнута** - Достижение целевого веса
             """)
 
-    # Демо-данные
-    elif st.session_state.current_page == "🔄 Демо-данные":
-        st.markdown(f'<h2 class="sub-header">🔄 Демо-данные</h2>', unsafe_allow_html=True)
+    # Мой профиль
+    elif st.session_state.current_page == "👤 Мой профиль":
+        st.markdown('<h2 class="sub-header">👤 Мой профиль</h2>', unsafe_allow_html=True)
         
-        st.info("""
-        **Демо-данные** помогут вам протестировать все функции приложения.
-        Будут созданы реалистичные данные за последние 2 месяца.
-        """)
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.button("🎯 Создать демо-данные", use_container_width=True, type="primary"):
-                # Генерация уникальных данных на основе профиля
-                profile = app.load_user_profile(st.session_state.current_user)
-                sport_type = profile.get('sport_type', 'Силовые тренировки')
+        if not user_profile.get('questionnaire_completed', False):
+            st.warning("Анкета не заполнена. Заполните для получения персонализированных рекомендаций.")
+            if st.button("📝 Заполнить анкету", use_container_width=True):
+                st.session_state.show_questionnaire = True
+                st.rerun()
+        else:
+            with st.form("update_profile_form"):
+                st.subheader("📏 Личные данные")
                 
-                demo_workouts = []
-                base_date = datetime.now() - timedelta(days=60)
+                personal_info = user_profile.get('personal_info', {})
+                goals = user_profile.get('goals', {})
                 
-                # Получаем упражнения для выбранного вида спорта
-                exercises = app.sport_types.get(sport_type, {}).get('exercises', ['Приседания', 'Жим лежа', 'Становая тяга'])
+                col1, col2 = st.columns(2)
+                with col1:
+                    age = st.number_input("Возраст:", min_value=10, max_value=100, value=personal_info.get('age', 25))
+                    height = st.number_input("Рост (см):", min_value=100, max_value=250, value=personal_info.get('height', 170))
+                with col2:
+                    weight = st.number_input("Текущий вес (кг):", min_value=30, max_value=200, value=personal_info.get('weight', 70))
+                    gender = st.selectbox("Пол:", ["Женский", "Мужской"], index=0 if personal_info.get('gender') == 'Женский' else 1)
                 
-                # Генерируем прогрессивные тренировки
-                for i, exercise in enumerate(exercises):
-                    for j in range(6):  # 6 тренировок на каждое упражнение
-                        date = base_date + timedelta(days=j*10 + i*2)
-                        
-                        # Базовый вес зависит от вида спорта
-                        if sport_type == 'Силовые тренировки':
-                            base_weight = [60, 50, 80, 40, 70][i % 5] + j * 5
-                            reps = 8 if j < 4 else 6
-                        elif sport_type == 'Бег/Кардио':
-                            base_weight = 0  # Для кардио вес не важен
-                            reps = [20, 25, 30, 35, 25, 30][j]
-                        elif sport_type == 'Йога/Пилатес':
-                            base_weight = 0
-                            reps = [10, 12, 15, 12, 15, 15][j]
-                        else:
-                            base_weight = 40 + j * 3
-                            reps = 10
-                        
-                        sets = 4 if sport_type in ['Силовые тренировки', 'Кроссфит'] else 3
-                        
-                        demo_workouts.append((
-                            date.strftime('%Y-%m-%d %H:%M:%S'),
-                            exercise,
-                            base_weight,
-                            reps,
-                            sets,
-                            f"{sport_type} - {exercise} - неделя {j+1}"
-                        ))
+                st.subheader("🎯 Цели")
+                goal_mapping_reverse = {v['name']: k for k, v in app.goals.items()}
+                current_goal_name = app.goals.get(goals.get('primary_goal', 'weight_loss'), {}).get('name', 'Похудение')
                 
-                # Сохраняем все демо-тренировки
-                count = 0
-                for workout in demo_workouts:
-                    success, _ = app.add_workout(st.session_state.current_user, workout[1], workout[2], workout[3], workout[4], workout[5])
-                    if success:
-                        count += 1
+                primary_goal = st.selectbox(
+                    "Основная цель:",
+                    [app.goals[g]['name'] for g in app.goals],
+                    index=list(app.goals.keys()).index(goals.get('primary_goal', 'weight_loss'))
+                )
                 
-                st.success(f"✅ Создано {count} демо-тренировок для {sport_type}!")
-                st.balloons()
+                target_weight = st.number_input("Желаемый вес (кг):", min_value=30, max_value=200, value=goals.get('target_weight', 65))
                 
-                st.markdown(f"""
-                ### 📊 Что было создано:
-                - **Реалистичная история** тренировок за 2 месяца
-                - **{len(exercises)} различных упражнения** для {sport_type}
-                - **Постепенный прогресс** в весах/повторениях
-                - **Готовые данные** для тестирования всех функций
-                """)
-        
-        with col2:
-            if st.button("🗑️ Очистить мои данные", type="secondary"):
-                filename = app.get_user_filename(st.session_state.current_user)
-                if os.path.exists(filename):
-                    os.remove(filename)
-                    st.success("✅ Ваши данные очищены!")
-                    st.rerun()
-            
-            st.warning("""
-            ⚠️ **Внимание!**
-            При создании демо-данных:
-            - Существующие тренировки будут сохранены
-            - Добавятся новые демо-тренировки
-            - Данные генерируются на основе вашего вида спорта
-            """)
+                st.subheader("🏋️‍♀️ Предпочитаемые активности")
+                activity_options = list(app.activity_types.keys())
+                activity_names = [app.activity_types[a]['name'] for a in activity_options]
+                
+                current_indices = []
+                for activity_id in user_profile.get('preferred_activities', []):
+                    if activity_id in activity_options:
+                        current_indices.append(activity_options.index(activity_id))
+                
+                selected_indices = st.multiselect(
+                    "Выберите предпочитаемые активности:",
+                    options=range(len(activity_names)),
+                    format_func=lambda x: f"{app.activity_types[activity_options[x]]['icon']} {activity_names[x]}",
+                    default=current_indices
+                )
+                
+                preferred_activities = [activity_options[i] for i in selected_indices]
+                
+                if st.form_submit_button("💾 Обновить профиль", use_container_width=True):
+                    personal_info = {
+                        'age': age,
+                        'height': height,
+                        'weight': weight,
+                        'gender': gender,
+                        'activity_level': personal_info.get('activity_level', 'moderate')
+                    }
+                    
+                    goals = {
+                        'primary_goal': goal_mapping_reverse[primary_goal],
+                        'target_weight': target_weight
+                    }
+                    
+                    if app.complete_questionnaire(st.session_state.current_user, personal_info, goals, preferred_activities):
+                        st.success("✅ Профиль успешно обновлен!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Ошибка обновления профиля")
 
 # Футер
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #666;'>
-    <p>💪 <strong>Фитнес Трекер Pro v5.0</strong> | Персональный тренер в вашем кармане</p>
+    <p>🧘 <strong>Фитнес Помощник v6.0</strong> | Умный подбор тренировок на основе ваших данных</p>
+    <p>Ваш персональный тренер для любого вида фитнеса</p>
 </div>
 """, unsafe_allow_html=True)
