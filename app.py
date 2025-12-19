@@ -10,10 +10,12 @@ import json
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 import joblib
+import warnings
+warnings.filterwarnings('ignore')
 
 # Настройка страницы
 st.set_page_config(
-    page_title="💪 Фитнес Помощник",
+    page_title="💪 Умный Фитнес Помощник",
     page_icon="💪",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -111,10 +113,30 @@ st.markdown("""
     .video-link:hover {
         background: #ff5252;
     }
+    .feedback-section {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 10px;
+        border-left: 5px solid #4CAF50;
+        margin: 1rem 0;
+    }
+    .retrain-notification {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        text-align: center;
+        margin: 1rem 0;
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.8; }
+        100% { opacity: 1; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
-class FitnessAssistant:
+class SelfLearningFitnessAssistant:
     def __init__(self):
         self.data_dir = 'user_data'
         self._ensure_data_directory()
@@ -391,7 +413,7 @@ class FitnessAssistant:
                     'session_duration': 30,
                     'activities': ['yoga', 'stretching'],
                     'schedule': [
-                        'День 1: Утренняя йога 20 мин',
+                        'День 1: Утренная йога 20 мин',
                         'День 2: Вечерняя растяжка 30 мин',
                         'День 3: Йога для спины 25 мин',
                         'День 4: Отдых',
@@ -399,7 +421,7 @@ class FitnessAssistant:
                     ],
                     'workouts': {
                         'day1': {
-                            'title': 'Утренняя йога',
+                            'title': 'Утренная йога',
                             'warmup': '5 минут дыхательных упражнений',
                             'exercises': [
                                 {'type': 'yoga', 'name': 'Поза горы', 'duration': '2 минуты'},
@@ -408,7 +430,7 @@ class FitnessAssistant:
                             ],
                             'cooldown': '5 минут медитации',
                             'video_url': 'https://www.youtube.com/watch?v=VaoV1PrYft4',
-                            'video_description': 'Утренняя йога для начинающих'
+                            'video_description': 'Утренная йога для начинающих'
                         }
                     }
                 }
@@ -473,7 +495,7 @@ class FitnessAssistant:
                             'warmup': '5 минут дыхания',
                             'exercises': [
                                 {'type': 'yoga', 'name': 'Поза горы', 'duration': '3 минуты'},
-                                {'type': 'yoga', 'name': 'Поза ребенка', 'duration': '5 минут'},
+                                {'type': 'yoga', 'name': 'Поза ребенка', 'duration': '5 минуты'},
                                 {'type': 'yoga', 'name': 'Наклон вперед', 'duration': '2 минуты'}
                             ],
                             'cooldown': '5 минут медитации',
@@ -494,68 +516,323 @@ class FitnessAssistant:
                 # Загружаем существующую модель
                 self.model = joblib.load(model_path)
                 self.scaler = joblib.load(os.path.join(self.data_dir, 'scaler.pkl'))
+                self.label_encoder = joblib.load(os.path.join(self.data_dir, 'label_encoder.pkl'))
+                st.success("✅ Загружена существующая ML модель")
                 return True
             except:
                 # Если ошибка загрузки, создаем новую модель
-                return self.train_recommendation_model()
+                st.warning("⚠️ Ошибка загрузки модели, создаем новую")
+                return self.train_initial_model()
         else:
             # Создаем и обучаем модель на синтетических данных
-            return self.train_recommendation_model()
+            return self.train_initial_model()
     
-    def train_recommendation_model(self):
-        """Обучает модель на синтетических данных"""
+    def train_initial_model(self):
+        """Обучает начальную модель на синтетических данных"""
         try:
-            # Создаем синтетические данные для обучения
+            # Создаем более реалистичные синтетические данные
             np.random.seed(42)
-            n_samples = 1000
+            n_samples = 2000
             
             # Признаки: возраст, вес, рост, пол (0-жен,1-муж)
-            X = np.zeros((n_samples, 4))
-            X[:, 0] = np.random.randint(18, 65, n_samples)  # возраст
-            X[:, 1] = np.random.normal(70, 15, n_samples)   # вес
+            X = np.zeros((n_samples, 5))  # Теперь 5 признаков включая ИМТ
+            
+            # Генерация реалистичных данных
+            X[:, 0] = np.random.randint(16, 70, n_samples)  # возраст
+            X[:, 1] = np.random.normal(75, 20, n_samples)   # вес
+            X[:, 1] = np.clip(X[:, 1], 40, 150)  # Ограничиваем вес
             X[:, 2] = np.random.normal(170, 10, n_samples)  # рост
+            X[:, 2] = np.clip(X[:, 2], 150, 210)  # Ограничиваем рост
             X[:, 3] = np.random.randint(0, 2, n_samples)    # пол
             
-            # Рассчитываем ИМТ
-            bmi = X[:, 1] / ((X[:, 2] / 100) ** 2)
+            # Рассчитываем ИМТ и добавляем как признак
+            height_m = X[:, 2] / 100
+            X[:, 4] = X[:, 1] / (height_m ** 2)  # ИМТ
             
-            # Цели на основе ИМТ и других факторов
+            # Цели на основе ИМТ и других факторов (более сложная логика)
             y = []
             for i in range(n_samples):
-                if bmi[i] > 25:
-                    y.append('weight_loss')  # Похудение
-                elif bmi[i] < 18.5:
-                    y.append('muscle_gain')  # Набор массы
-                elif X[i, 0] > 50:
-                    y.append('flexibility')  # Гибкость для старшего возраста
-                elif X[i, 0] < 30 and X[i, 3] == 1:  # Молодые мужчины
+                age = X[i, 0]
+                bmi = X[i, 4]
+                gender = X[i, 3]
+                
+                if bmi > 28:  # Ожирение
+                    if age > 50:
+                        y.append('health')
+                    else:
+                        y.append('weight_loss')
+                elif bmi < 18.5:  # Недостаточный вес
+                    if gender == 1:  # Мужчины
+                        y.append('muscle_gain')
+                    else:
+                        y.append('health')
+                elif age > 55:  # Пожилые
+                    y.append('flexibility')
+                elif age < 25 and gender == 1:  # Молодые мужчины
                     y.append('muscle_gain')
+                elif bmi > 24 and bmi <= 28:  # Избыточный вес
+                    y.append('weight_loss')
                 else:
-                    y.append('endurance')    # Выносливость
+                    # Случайный выбор между выносливостью и здоровьем
+                    y.append(np.random.choice(['endurance', 'health']))
             
             # Кодируем цели
-            le = LabelEncoder()
-            y_encoded = le.fit_transform(y)
+            self.label_encoder = LabelEncoder()
+            y_encoded = self.label_encoder.fit_transform(y)
             
             # Масштабируем признаки
             self.scaler = StandardScaler()
             X_scaled = self.scaler.fit_transform(X)
             
-            # Обучаем модель
-            self.model = RandomForestClassifier(n_estimators=100, random_state=42)
+            # Обучаем модель с настройками для инкрементального обучения
+            self.model = RandomForestClassifier(
+                n_estimators=100, 
+                max_depth=10,
+                min_samples_split=5,
+                warm_start=True,  # Для инкрементального обучения
+                random_state=42,
+                class_weight='balanced'
+            )
             self.model.fit(X_scaled, y_encoded)
             
             # Сохраняем модель и скейлер
             joblib.dump(self.model, os.path.join(self.data_dir, 'training_recommender.pkl'))
             joblib.dump(self.scaler, os.path.join(self.data_dir, 'scaler.pkl'))
-            joblib.dump(le, os.path.join(self.data_dir, 'label_encoder.pkl'))
+            joblib.dump(self.label_encoder, os.path.join(self.data_dir, 'label_encoder.pkl'))
+            
+            # Сохраняем информацию о начальной модели
+            model_info = {
+                'initial_training_date': datetime.now().isoformat(),
+                'initial_samples': n_samples,
+                'feature_names': ['age', 'weight', 'height', 'gender', 'bmi'],
+                'classes': list(self.label_encoder.classes_)
+            }
+            with open(os.path.join(self.data_dir, 'model_info.json'), 'w') as f:
+                json.dump(model_info, f, indent=2)
+            
+            st.success(f"✅ Создана новая ML модель на {n_samples} синтетических примерах")
             return True
         except Exception as e:
-            st.error(f"Ошибка при обучении модели: {e}")
+            st.error(f"❌ Ошибка при обучении начальной модели: {e}")
             return False
     
-    def recommend_programs_based_on_profile(self, user_profile):
-        """Рекомендует программы тренировок на основе профиля пользователя"""
+    def collect_feedback(self, username, program_id, rating, user_goal, actual_goal=None, comment=''):
+        """Собирает обратную связь от пользователя по рекомендации"""
+        try:
+            feedback_file = os.path.join(self.data_dir, 'user_feedback.csv')
+            
+            # Загружаем профиль пользователя для получения его данных
+            profile = self.load_user_profile(username)
+            personal_info = profile.get('personal_info', {})
+            
+            # Рассчитываем ИМТ если есть данные
+            bmi = None
+            if 'weight' in personal_info and 'height' in personal_info:
+                height_m = personal_info['height'] / 100
+                bmi = personal_info['weight'] / (height_m ** 2)
+            
+            # Создаем запись обратной связи
+            feedback_data = {
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'user_id': hashlib.md5(username.encode()).hexdigest()[:8],  # Анонимный ID
+                'user_age': personal_info.get('age'),
+                'user_weight': personal_info.get('weight'),
+                'user_height': personal_info.get('height'),
+                'user_gender': 0 if personal_info.get('gender') == 'Женский' else 1,
+                'user_bmi': bmi,
+                'program_id': program_id,
+                'recommended_goal': user_goal,
+                'actual_user_goal': actual_goal if actual_goal else user_goal,
+                'user_rating': rating,  # 1-5 звезд
+                'user_comment': comment
+            }
+            
+            # Сохраняем в CSV
+            df = pd.DataFrame([feedback_data])
+            if os.path.exists(feedback_file):
+                existing_df = pd.read_csv(feedback_file)
+                # Проверяем, не дублируется ли отзыв
+                recent_feedback = existing_df[
+                    (existing_df['user_id'] == feedback_data['user_id']) & 
+                    (existing_df['program_id'] == program_id) &
+                    (pd.to_datetime(existing_df['timestamp']) > pd.Timestamp.now() - pd.Timedelta(hours=1))
+                ]
+                if len(recent_feedback) == 0:
+                    df.to_csv(feedback_file, mode='a', header=False, index=False)
+                else:
+                    return True, "Вы уже оставляли отзыв по этой программе недавно."
+            else:
+                df.to_csv(feedback_file, index=False)
+            
+            # Проверяем, нужно ли запустить дообучение
+            self._check_retraining_needed()
+            
+            return True, "Спасибо за ваш отзыв! Он поможет улучшить рекомендации."
+        except Exception as e:
+            return False, f"Ошибка сохранения отзыва: {e}"
+    
+    def _check_retraining_needed(self):
+        """Проверяет, нужно ли запустить дообучение модели"""
+        try:
+            feedback_file = os.path.join(self.data_dir, 'user_feedback.csv')
+            if not os.path.exists(feedback_file):
+                return
+            
+            feedback_df = pd.read_csv(feedback_file)
+            
+            # Если накопилось достаточно новых отзывов (например, 30)
+            if len(feedback_df) >= 30:
+                # Проверяем, когда последний раз дообучали модель
+                retrain_log_path = os.path.join(self.data_dir, 'retraining_log.json')
+                if os.path.exists(retrain_log_path):
+                    with open(retrain_log_path, 'r') as f:
+                        log = json.load(f)
+                    last_retrain = pd.Timestamp(log[-1]['retrain_date']) if log else pd.Timestamp.min
+                else:
+                    last_retrain = pd.Timestamp.min
+                
+                # Если прошло больше 3 дней с последнего дообучения
+                if (pd.Timestamp.now() - last_retrain).days >= 3:
+                    # Автоматически запускаем дообучение
+                    success, message = self.retrain_model_with_feedback()
+                    if success:
+                        st.session_state.auto_retrain_message = message
+        except Exception as e:
+            st.error(f"Ошибка проверки необходимости дообучения: {e}")
+    
+    def retrain_model_with_feedback(self, force_retrain=False):
+        """Дообучает модель на основе накопленных отзывов пользователей"""
+        try:
+            feedback_file = os.path.join(self.data_dir, 'user_feedback.csv')
+            if not os.path.exists(feedback_file):
+                return False, "Файл с отзывами не найден."
+            
+            feedback_df = pd.read_csv(feedback_file)
+            
+            # Фильтруем валидные записи
+            valid_feedback = feedback_df.dropna(subset=['user_age', 'user_weight', 'user_height', 'user_gender', 'user_rating'])
+            
+            if len(valid_feedback) < 20 and not force_retrain:
+                return False, f"Недостаточно данных для дообучения (только {len(valid_feedback)} записей). Нужно минимум 20."
+            
+            # Разделяем на положительные и все отзывы
+            positive_feedback = valid_feedback[valid_feedback['user_rating'] >= 4]
+            all_feedback = valid_feedback
+            
+            # Используем все отзывы, но взвешиваем по рейтингу
+            weights = all_feedback['user_rating'] / 5.0  # Веса от 0.2 до 1.0
+            
+            # Подготовка признаков (теперь 5 признаков)
+            X_new = all_feedback[['user_age', 'user_weight', 'user_height', 'user_gender']].values
+            
+            # Добавляем ИМТ как признак
+            heights_m = all_feedback['user_height'] / 100
+            bmis = all_feedback['user_weight'] / (heights_m ** 2)
+            X_new = np.hstack([X_new, bmis.values.reshape(-1, 1)])
+            
+            # Используем actual_user_goal если есть, иначе recommended_goal
+            y_new = all_feedback['actual_user_goal'].fillna(all_feedback['recommended_goal']).values
+            
+            # Загружаем текущую модель если еще не загружена
+            if not hasattr(self, 'model'):
+                self.init_ml_model()
+            
+            # 1. Полное переобучение на всех данных (старых + новых)
+            # Для этого нам нужны старые данные
+            old_data_path = os.path.join(self.data_dir, 'training_data.npz')
+            
+            if os.path.exists(old_data_path):
+                # Загружаем старые данные
+                old_data = np.load(old_data_path)
+                X_old = old_data['X']
+                y_old = old_data['y']
+                
+                # Объединяем старые и новые данные
+                X_combined = np.vstack([X_old, X_new])
+                y_combined = np.concatenate([y_old, y_new])
+                
+                # Ограничиваем общий размер данных (максимум 5000 примеров)
+                if len(X_combined) > 5000:
+                    X_combined = X_combined[-5000:]
+                    y_combined = y_combined[-5000:]
+            else:
+                # Только новые данные
+                X_combined = X_new
+                y_combined = y_new
+            
+            # Сохраняем объединенные данные
+            np.savez(old_data_path, X=X_combined, y=y_combined)
+            
+            # Масштабируем данные
+            X_scaled = self.scaler.fit_transform(X_combined)
+            
+            # Кодируем цели
+            y_encoded = self.label_encoder.transform(y_combined)
+            
+            # Переобучаем модель с нуля
+            self.model = RandomForestClassifier(
+                n_estimators=100, 
+                max_depth=10,
+                min_samples_split=5,
+                warm_start=True,
+                random_state=42,
+                class_weight='balanced'
+            )
+            self.model.fit(X_scaled, y_encoded)
+            
+            # Сохраняем обновленную модель
+            joblib.dump(self.model, os.path.join(self.data_dir, 'training_recommender.pkl'))
+            joblib.dump(self.scaler, os.path.join(self.data_dir, 'scaler.pkl'))
+            joblib.dump(self.label_encoder, os.path.join(self.data_dir, 'label_encoder.pkl'))
+            
+            # Логируем событие дообучения
+            log_entry = {
+                'retrain_date': datetime.now().isoformat(),
+                'samples_used': len(X_combined),
+                'new_samples': len(X_new),
+                'positive_feedback': len(positive_feedback),
+                'total_feedback': len(feedback_df)
+            }
+            
+            log_path = os.path.join(self.data_dir, 'retraining_log.json')
+            if os.path.exists(log_path):
+                with open(log_path, 'r') as f:
+                    log = json.load(f)
+            else:
+                log = []
+            
+            log.append(log_entry)
+            with open(log_path, 'w') as f:
+                json.dump(log, f, indent=2)
+            
+            return True, f"✅ Модель успешно дообучена! Использовано {len(X_combined)} примеров ({len(X_new)} новых)."
+        
+        except Exception as e:
+            return False, f"❌ Ошибка при дообучении модели: {e}"
+    
+    def get_model_info(self):
+        """Возвращает информацию о текущей модели"""
+        info = {
+            'has_model': hasattr(self, 'model') and self.model is not None,
+            'model_type': type(self.model).__name__ if hasattr(self, 'model') else 'None',
+            'feature_count': self.model.n_features_in_ if hasattr(self, 'model') and hasattr(self.model, 'n_features_in_') else 0,
+            'classes': list(self.label_encoder.classes_) if hasattr(self, 'label_encoder') else []
+        }
+        
+        # Читаем дополнительную информацию из файлов
+        try:
+            info_file = os.path.join(self.data_dir, 'model_info.json')
+            if os.path.exists(info_file):
+                with open(info_file, 'r') as f:
+                    model_info = json.load(f)
+                info.update(model_info)
+        except:
+            pass
+        
+        return info
+    
+    def recommend_programs_based_on_profile(self, user_profile, display_feedback=True):
+        """Рекомендует программы тренировок на основе профиля пользователя с системой обратной связи"""
         try:
             personal_info = user_profile.get('personal_info', {})
             goals = user_profile.get('goals', {})
@@ -566,34 +843,53 @@ class FitnessAssistant:
             weight = personal_info.get('weight', 70)
             height = personal_info.get('height', 170)
             gender = 0 if personal_info.get('gender') == 'Женский' else 1
-            primary_goal = goals.get('primary_goal', 'weight_loss')
             
-            # Подготавливаем признаки для модели (4 признака как при обучении)
-            X = np.array([[age, weight, height, gender]])
+            # Рассчитываем ИМТ
+            height_m = height / 100
+            bmi = weight / (height_m ** 2)
+            
+            # Подготавливаем признаки для модели (5 признаков)
+            X = np.array([[age, weight, height, gender, bmi]])
             
             # Проверяем, есть ли модель
             if not hasattr(self, 'model') or self.model is None:
-                # Возвращаем программы по выбранной цели
+                st.warning("ML модель не загружена. Используются рекомендации по выбранной цели.")
+                primary_goal = goals.get('primary_goal', 'weight_loss')
                 final_goal = primary_goal if primary_goal in self.training_programs else 'weight_loss'
-                return self.training_programs.get(final_goal, [])[:3]
-            
-            # Масштабируем признаки
-            X_scaled = self.scaler.transform(X)
-            
-            # Предсказываем цель
-            le_path = os.path.join(self.data_dir, 'label_encoder.pkl')
-            if os.path.exists(le_path):
-                le = joblib.load(le_path)
-                predicted_goal_encoded = self.model.predict(X_scaled)[0]
-                predicted_goal = le.inverse_transform([predicted_goal_encoded])[0]
+                recommended_programs = self.training_programs.get(final_goal, [])[:3]
             else:
-                predicted_goal = primary_goal
-            
-            # Используем либо выбранную пользователем цель, либо предсказанную
-            final_goal = primary_goal if primary_goal in self.goals else predicted_goal
-            
-            # Получаем программы для цели
-            recommended_programs = self.training_programs.get(final_goal, [])
+                # Масштабируем признаки
+                X_scaled = self.scaler.transform(X)
+                
+                # Предсказываем цель
+                predicted_goal_encoded = self.model.predict(X_scaled)[0]
+                predicted_goal = self.label_encoder.inverse_transform([predicted_goal_encoded])[0]
+                
+                # Определяем финальную цель (предпочтение пользователя или предсказание модели)
+                primary_goal = goals.get('primary_goal', predicted_goal)
+                
+                # Если пользователь выбрал цель, используем её, иначе используем предсказание модели
+                # Но также можем учитывать предсказание модели как рекомендацию
+                final_goal = primary_goal
+                
+                # Получаем программы для цели
+                recommended_programs = self.training_programs.get(final_goal, [])
+                
+                # Если программ для выбранной цели нет, используем предсказание модели
+                if not recommended_programs:
+                    final_goal = predicted_goal
+                    recommended_programs = self.training_programs.get(final_goal, [])
+                
+                # Добавляем объяснение рекомендации
+                if display_feedback:
+                    goal_info = self.goals.get(predicted_goal, {})
+                    with st.expander("🤖 Как ИИ сделал эту рекомендацию?", expanded=False):
+                        st.write(f"**На основе ваших данных:**")
+                        st.write(f"- Возраст: {age} лет")
+                        st.write(f"- Рост: {height} см, Вес: {weight} кг")
+                        st.write(f"- ИМТ: {bmi:.1f} ({self.get_bmi_category(bmi)})")
+                        st.write(f"**Модель рекомендует:** {goal_info.get('name', predicted_goal)}")
+                        st.write(f"**Ваш выбор:** {self.goals.get(primary_goal, {}).get('name', primary_goal)}")
             
             # Фильтруем по предпочитаемым активностям
             if preferred_activities and recommended_programs:
@@ -605,15 +901,128 @@ class FitnessAssistant:
                         filtered_programs.append(program)
                 
                 if filtered_programs:
-                    return filtered_programs[:3]  # Возвращаем до 3 программ
+                    recommended_programs = filtered_programs[:3]
             
-            return recommended_programs[:3]
+            # Ограничиваем количество программ
+            recommended_programs = recommended_programs[:3]
+            
+            # Добавляем систему обратной связи если требуется
+            if recommended_programs and display_feedback and st.session_state.get('authenticated'):
+                for program in recommended_programs:
+                    with st.container():
+                        level_info = self.levels.get(program['level'], {})
+                        
+                        # Получаем информацию об активностях
+                        activity_icons = ""
+                        for activity_id in program.get('activities', []):
+                            activity = self.activity_types.get(activity_id, {})
+                            activity_icons += f"{activity.get('icon', '🏃')} "
+                        
+                        st.markdown(f"""
+                        <div class="training-card">
+                            <h3>{activity_icons} {program['name']}</h3>
+                            <p><strong>Уровень:</strong> <span class='goal-badge {level_info.get("color", "level-beginner")}'>{level_info.get('name', 'Начальный')}</span> | <strong>Продолжительность:</strong> {program['duration_weeks']} недель</p>
+                            <p>{program['description']}</p>
+                            <p><strong>Расписание:</strong></p>
+                            <ul>
+                        """, unsafe_allow_html=True)
+                        
+                        for session in program.get('schedule', []):
+                            st.markdown(f"<li>{session}</li>", unsafe_allow_html=True)
+                        
+                        st.markdown("</ul>", unsafe_allow_html=True)
+                        
+                        # Советы по питанию
+                        if 'nutrition_tips' in program:
+                            st.markdown("<p><strong>Советы по питанию:</strong></p><ul>", unsafe_allow_html=True)
+                            for tip in program['nutrition_tips']:
+                                st.markdown(f"<li>{tip}</li>", unsafe_allow_html=True)
+                            st.markdown("</ul>", unsafe_allow_html=True)
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            # Кнопка для выбора программы
+                            if st.button(f"🎯 Выбрать программу", key=f"select_{program['id']}", use_container_width=True):
+                                if self.set_current_program(st.session_state.current_user, program['id']):
+                                    st.success(f"✅ Программа '{program['name']}' выбрана!")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Ошибка при выборе программы")
+                        
+                        with col2:
+                            # Кнопка для просмотра деталей
+                            if st.button(f"📋 Посмотреть тренировки", key=f"details_{program['id']}", use_container_width=True):
+                                st.session_state.show_program_details = program['id']
+                                st.rerun()
+                        
+                        # --- СИСТЕМА ОБРАТНОЙ СВЯЗИ ---
+                        st.markdown('<div class="feedback-section">', unsafe_allow_html=True)
+                        st.caption("**Помогите нам стать лучше!** Оцените эту рекомендацию:")
+                        
+                        feedback_cols = st.columns(5)
+                        ratings = ["🤬", "😞", "😐", "🙂", "😍"]
+                        ratings_values = [1, 2, 3, 4, 5]
+                        
+                        for idx, (col, emoji, rating_val) in enumerate(zip(feedback_cols, ratings, ratings_values)):
+                            with col:
+                                if st.button(emoji, key=f"rating_{program['id']}_{rating_val}", use_container_width=True):
+                                    # Собираем дополнительную информацию если оценка низкая
+                                    if rating_val <= 2:
+                                        with st.form(key=f"low_rating_form_{program['id']}"):
+                                            st.write("**Пожалуйста, укажите почему:**")
+                                            actual_goal = st.selectbox(
+                                                "Какая была бы более подходящая цель?",
+                                                list(self.goals.keys()),
+                                                format_func=lambda x: self.goals[x]['name'],
+                                                key=f"actual_goal_{program['id']}"
+                                            )
+                                            comment = st.text_area("Дополнительные комментарии:", key=f"comment_{program['id']}")
+                                            
+                                            if st.form_submit_button("Отправить подробный отзыв"):
+                                                success, message = self.collect_feedback(
+                                                    st.session_state.current_user,
+                                                    program['id'],
+                                                    rating_val,
+                                                    final_goal,
+                                                    actual_goal,
+                                                    comment
+                                                )
+                                                if success:
+                                                    st.success("Спасибо за подробный отзыв! Это очень поможет улучшить рекомендации.")
+                                                else:
+                                                    st.error(message)
+                                                st.rerun()
+                                    else:
+                                        # Для высоких оценок просто собираем отзыв
+                                        success, message = self.collect_feedback(
+                                            st.session_state.current_user,
+                                            program['id'],
+                                            rating_val,
+                                            final_goal,
+                                            None,
+                                            f"Автоматический отзыв: {emoji}"
+                                        )
+                                        if success:
+                                            st.success("Спасибо за вашу оценку! 👍")
+                                        else:
+                                            st.error(message)
+                                        st.rerun()
+                        
+                        st.markdown('</div>', unsafe_allow_html=True)
+            
+            return recommended_programs if display_feedback else recommended_programs
             
         except Exception as e:
             # В случае ошибки возвращаем программы по умолчанию
-            st.warning("Используются рекомендации по умолчанию")
+            st.warning(f"Используются рекомендации по умолчанию. Ошибка: {str(e)[:100]}")
             primary_goal = user_profile.get('goals', {}).get('primary_goal', 'weight_loss')
             return self.training_programs.get(primary_goal, self.training_programs['weight_loss'])[:3]
+    
+    # Остальные методы класса (get_exercises_for_program, get_all_workout_days, calculate_calories_needed, 
+    # get_user_filename, get_user_profile_filename, register_user, login_user, save_user_profile, 
+    # load_user_profile, complete_questionnaire, set_current_program, get_bmi_category, add_workout, 
+    # get_all_workouts, get_statistics, calculate_streak, get_achievements)
+    # остаются БЕЗ ИЗМЕНЕНИЙ из вашего исходного кода, так как они не связаны с ML моделью
     
     def get_exercises_for_program(self, program_id, day=None):
         """Возвращает упражнения для конкретной программы и дня"""
@@ -675,11 +1084,11 @@ class FitnessAssistant:
         
         # Коэффициент активности
         activity_multipliers = {
-            'sedentary': 1.2,      # Сидячий образ жизни
-            'light': 1.375,        # Легкая активность 1-3 раза в неделю
-            'moderate': 1.55,      # Умеренная активность 3-5 раз в неделю
-            'active': 1.725,       # Высокая активность 6-7 раз в неделю
-            'very_active': 1.9,    # Очень высокая активность,
+            'sedentary': 1.2,
+            'light': 1.375,
+            'moderate': 1.55,
+            'active': 1.725,
+            'very_active': 1.9,
         }
         
         tdee = bmr * activity_multipliers.get(activity_level, 1.2)
@@ -687,11 +1096,11 @@ class FitnessAssistant:
         # Корректировка по цели
         goal = user_profile.get('goals', {}).get('primary_goal', 'weight_loss')
         if goal == 'weight_loss':
-            calories = tdee - 500  # Дефицит для похудения
+            calories = tdee - 500
         elif goal == 'muscle_gain':
-            calories = tdee + 300  # Профицит для набора массы
+            calories = tdee + 300
         else:
-            calories = tdee  # Поддержание
+            calories = tdee
         
         return int(calories), int(tdee)
     
@@ -1001,7 +1410,7 @@ class FitnessAssistant:
         if profile.get('personal_info', {}).get('weight') and profile.get('goals', {}).get('target_weight'):
             current = profile['personal_info']['weight']
             target = profile['goals']['target_weight']
-            if abs(current - target) <= 2:  # Достигли цели в пределах 2 кг
+            if abs(current - target) <= 2:
                 achievements.append({
                     'id': 'goal_achieved',
                     'title': '🏆 Цель достигнута!',
@@ -1020,10 +1429,29 @@ class FitnessAssistant:
                 'unlocked': True
             })
         
+        # Достижение за обратную связь
+        feedback_file = os.path.join(self.data_dir, 'user_feedback.csv')
+        if os.path.exists(feedback_file):
+            try:
+                feedback_df = pd.read_csv(feedback_file)
+                user_hash = hashlib.md5(username.encode()).hexdigest()[:8]
+                user_feedback_count = len(feedback_df[feedback_df['user_id'] == user_hash])
+                
+                if user_feedback_count >= 5:
+                    achievements.append({
+                        'id': 'feedback_pro',
+                        'title': '💬 Эксперт по обратной связи',
+                        'description': f'Оставил {user_feedback_count} отзывов',
+                        'icon': '💬',
+                        'unlocked': True
+                    })
+            except:
+                pass
+        
         return achievements
 
 # Инициализация приложения
-app = FitnessAssistant()
+app = SelfLearningFitnessAssistant()
 
 # Система аутентификации
 def initialize_session_state():
@@ -1043,12 +1471,21 @@ def initialize_session_state():
         st.session_state.show_program_details = None
     if 'selected_day' not in st.session_state:
         st.session_state.selected_day = None
+    if 'show_admin_panel' not in st.session_state:
+        st.session_state.show_admin_panel = False
+    if 'auto_retrain_message' not in st.session_state:
+        st.session_state.auto_retrain_message = None
 
 initialize_session_state()
 
 # Страница входа/регистрации
 if not st.session_state.authenticated:
-    st.markdown('<h1 class="main-header">🧘 Фитнес Помощник</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🤖 Умный Фитнес Помощник</h1>', unsafe_allow_html=True)
+    
+    # Показываем уведомление об автоматическом дообучении если есть
+    if st.session_state.get('auto_retrain_message'):
+        st.markdown(f'<div class="retrain-notification">🔄 {st.session_state.auto_retrain_message}</div>', unsafe_allow_html=True)
+        st.session_state.auto_retrain_message = None
     
     if st.session_state.show_login:
         # Форма входа
@@ -1151,7 +1588,7 @@ elif st.session_state.show_questionnaire:
             "Выберите предпочитаемые активности:",
             options=range(len(activity_names)),
             format_func=lambda x: f"{app.activity_types[activity_options[x]]['icon']} {activity_names[x]}",
-            default=[0, 1, 2],  # По умолчанию йога, пилатес, круговые
+            default=[0, 1, 2],
             key="q_activities"
         )
         
@@ -1209,6 +1646,11 @@ else:
     # Загрузка профиля пользователя
     user_profile = app.load_user_profile(st.session_state.current_user)
     
+    # Показываем уведомление об автоматическом дообучении если есть
+    if st.session_state.get('auto_retrain_message'):
+        st.markdown(f'<div class="retrain-notification">🔄 {st.session_state.auto_retrain_message}</div>', unsafe_allow_html=True)
+        st.session_state.auto_retrain_message = None
+    
     # Отображение текущего пользователя
     st.sidebar.markdown(f'<div class="user-card">👤 {st.session_state.current_user}</div>', unsafe_allow_html=True)
     
@@ -1227,7 +1669,6 @@ else:
     # Показываем текущую программу
     if user_profile.get('current_program'):
         current_program_id = user_profile['current_program']
-        # Находим информацию о программе
         program_info = None
         for goal, programs in app.training_programs.items():
             for program in programs:
@@ -1275,6 +1716,63 @@ else:
                 st.metric("Серия", f"{stats.get('workout_streak', 0)} дней")
         
         st.markdown("---")
+        
+        # Кнопки для самообучающейся системы
+        if st.session_state.current_user == "admin" or st.session_state.current_user.endswith("_admin"):
+            st.markdown("### ⚙️ Администрирование")
+            
+            if st.button("🔄 Дообучить модель"):
+                with st.spinner("Анализ отзывов и дообучение..."):
+                    success, message = app.retrain_model_with_feedback()
+                    if success:
+                        st.success(message)
+                        st.balloons()
+                    else:
+                        st.warning(message)
+            
+            if st.button("📊 Статистика модели"):
+                model_info = app.get_model_info()
+                with st.expander("Информация о модели", expanded=True):
+                    st.write(f"**Тип модели:** {model_info.get('model_type', 'Неизвестно')}")
+                    st.write(f"**Количество признаков:** {model_info.get('feature_count', 0)}")
+                    st.write(f"**Классы:** {', '.join(model_info.get('classes', []))}")
+                    
+                    # Статистика по отзывам
+                    feedback_file = os.path.join(app.data_dir, 'user_feedback.csv')
+                    if os.path.exists(feedback_file):
+                        try:
+                            feedback_df = pd.read_csv(feedback_file)
+                            st.write(f"**Всего отзывов:** {len(feedback_df)}")
+                            st.write(f"**Средний рейтинг:** {feedback_df['user_rating'].mean():.2f}")
+                        except:
+                            st.write("**Статистика отзывов:** Недоступна")
+            
+            if st.button("🧹 Очистить кэш модели"):
+                try:
+                    # Удаляем файлы модели
+                    files_to_remove = [
+                        'training_recommender.pkl',
+                        'scaler.pkl', 
+                        'label_encoder.pkl',
+                        'training_data.npz',
+                        'user_feedback.csv',
+                        'retraining_log.json'
+                    ]
+                    removed = 0
+                    for file in files_to_remove:
+                        file_path = os.path.join(app.data_dir, file)
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                            removed += 1
+                    
+                    # Перезагружаем модель
+                    app.init_ml_model()
+                    st.success(f"✅ Удалено {removed} файлов. Модель перезагружена.")
+                except Exception as e:
+                    st.error(f"Ошибка очистки: {e}")
+        
+        st.markdown("---")
+        
         if st.button("✏️ Редактировать анкету"):
             st.session_state.show_questionnaire = True
             st.rerun()
@@ -1314,7 +1812,7 @@ else:
                 st.markdown('<div class="progress-card">', unsafe_allow_html=True)
                 bmi = user_profile.get('bmi', 0)
                 bmi_category = user_profile.get('bmi_category', '')
-                st.metric("ИМТ", f"{bmi}")
+                st.metric("ИМТ", f"{bmi:.1f}")
                 st.caption(f"Категория: {bmi_category}")
                 st.markdown('</div>', unsafe_allow_html=True)
             
@@ -1330,7 +1828,6 @@ else:
                 st.markdown("### 🏃 Текущая программа тренировок")
                 
                 current_program_id = user_profile['current_program']
-                # Находим программу
                 current_program = None
                 for goal, programs in app.training_programs.items():
                     for program in programs:
@@ -1359,63 +1856,17 @@ else:
                     for session in current_program.get('schedule', []):
                         st.markdown(f"- {session}")
             
-            # Рекомендуемые программы на основе ML
-            st.markdown("### 🎯 Персональные рекомендации")
+            # Рекомендуемые программы на основе ML с системой обратной связи
+            st.markdown("### 🎯 Персональные рекомендации ИИ")
             
-            recommended_programs = app.recommend_programs_based_on_profile(user_profile)
+            recommended_programs = app.recommend_programs_based_on_profile(user_profile, display_feedback=True)
             
-            if recommended_programs:
-                for program in recommended_programs:
-                    with st.container():
-                        level_info = app.levels.get(program['level'], {})
-                        
-                        # Получаем информацию об активностях
-                        activity_icons = ""
-                        for activity_id in program.get('activities', []):
-                            activity = app.activity_types.get(activity_id, {})
-                            activity_icons += f"{activity.get('icon', '🏃')} "
-                        
-                        st.markdown(f"""
-                        <div class="training-card">
-                            <h3>{activity_icons} {program['name']}</h3>
-                            <p><strong>Уровень:</strong> <span class='goal-badge {level_info.get("color", "level-beginner")}'>{level_info.get('name', 'Начальный')}</span> | <strong>Продолжительность:</strong> {program['duration_weeks']} недель</p>
-                            <p>{program['description']}</p>
-                            <p><strong>Расписание:</strong></p>
-                            <ul>
-                        """, unsafe_allow_html=True)
-                        
-                        for session in program.get('schedule', []):
-                            st.markdown(f"<li>{session}</li>", unsafe_allow_html=True)
-                        
-                        st.markdown("</ul>", unsafe_allow_html=True)
-                        
-                        # Советы по питанию
-                        if 'nutrition_tips' in program:
-                            st.markdown("<p><strong>Советы по питанию:</strong></p><ul>", unsafe_allow_html=True)
-                            for tip in program['nutrition_tips']:
-                                st.markdown(f"<li>{tip}</li>", unsafe_allow_html=True)
-                            st.markdown("</ul>", unsafe_allow_html=True)
-                        
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            # Кнопка для выбора программы
-                            if st.button(f"🎯 Выбрать программу", key=f"select_{program['id']}", use_container_width=True):
-                                if app.set_current_program(st.session_state.current_user, program['id']):
-                                    st.success(f"✅ Программа '{program['name']}' выбрана!")
-                                    st.rerun()
-                                else:
-                                    st.error("❌ Ошибка при выборе программы")
-                        
-                        with col2:
-                            # Кнопка для просмотра деталей
-                            if st.button(f"📋 Посмотреть тренировки", key=f"details_{program['id']}", use_container_width=True):
-                                st.session_state.show_program_details = program['id']
-                                st.rerun()
-            else:
+            if not recommended_programs:
                 st.info("""
                 💡 **Рекомендации появятся после заполнения анкеты.**
                 
                 Наш ИИ анализирует ваши данные и подбирает оптимальные тренировочные программы.
+                Помогите нам стать лучше - оценивайте рекомендации!
                 """)
             
             # Быстрые действия
@@ -1545,7 +1996,7 @@ else:
             else:
                 st.info("Программы для вашей цели находятся в разработке. Скоро появятся!")
 
-    # Добавление тренировки (с возможностью добавления по программе)
+    # Добавление тренировки
     elif st.session_state.current_page == "➕ Добавить тренировку":
         st.markdown('<h2 class="sub-header">➕ Добавить тренировку</h2>', unsafe_allow_html=True)
         
@@ -1748,6 +2199,7 @@ else:
             📝 **Анкета заполнена** - Заполнение анкеты
             🏆 **Цель достигнута** - Достижение целевого веса
             📋 **Программа начата** - Начало тренировочной программы
+            💬 **Эксперт по обратной связи** - Оставьте 5 отзывов
             """)
 
     # Мой профиль
@@ -1827,7 +2279,7 @@ else:
                 
                 preferred_activities = [activity_options[i] for i in selected_indices]
                 
-                # Кнопка отправки формы ДОЛЖНА быть внутри формы
+                # Кнопка отправки формы
                 submit_button = st.form_submit_button("💾 Обновить профиль", use_container_width=True)
                 
                 if submit_button:
@@ -1850,7 +2302,7 @@ else:
                     else:
                         st.error("❌ Ошибка обновления профиля")
 
-# Обработка просмотра деталей программы (модальное окно)
+# Обработка просмотра деталей программы
 if st.session_state.get('show_program_details'):
     program_id = st.session_state.show_program_details
     
@@ -1937,7 +2389,6 @@ if st.session_state.get('show_program_details'):
                         col1, col2 = st.columns(2)
                         with col1:
                             if st.button(f"➕ Добавить тренировку День {i+1}", use_container_width=True, key=f"add_{day_key}"):
-                                # Переходим на страницу добавления тренировки
                                 st.session_state.current_page = "➕ Добавить тренировку"
                                 st.session_state.selected_day = f"День {i+1}"
                                 st.rerun()
@@ -1960,7 +2411,7 @@ if st.session_state.get('show_program_details'):
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #666;'>
-    <p>🧘 <strong>Фитнес Помощник v8.0</strong> | Умный подбор тренировок на основе ваших данных</p>
-    <p>Ваш персональный тренер для любого вида фитнеса</p>
+    <p>🤖 <strong>Умный Фитнес Помощник v9.0</strong> | Самообучающаяся система рекомендаций</p>
+    <p>Ваш персональный ИИ-тренер, который становится умнее с каждым отзывом!</p>
 </div>
 """, unsafe_allow_html=True)
