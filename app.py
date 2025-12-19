@@ -1495,7 +1495,7 @@ else:
                     col1, col2 = st.columns([3, 1])
                     with col1:
                         st.markdown(f"#### {current_program['name']}")
-                        st.markdown(f"**Уровень:** <span class='goal-badge {level_info.get(\"color\", \"level-beginner\")}'>{level_info.get('name', 'Начальный')}</span>", unsafe_allow_html=True)
+                        st.markdown(f"**Уровень:** <span class='goal-badge {level_info.get('color', 'level-beginner')}'>{level_info.get('name', 'Начальный')}</span>", unsafe_allow_html=True)
                         st.markdown(f"**Продолжительность:** {current_program['duration_weeks']} недель")
                         st.markdown(f"**Тренировок в неделю:** {current_program['sessions_per_week']}")
                     
@@ -2175,5 +2175,6 @@ st.markdown("""
     <p>Ваш персональный тренер для любого вида фитнеса</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
