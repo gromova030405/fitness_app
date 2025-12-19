@@ -1468,7 +1468,7 @@ else:
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with col3:
-                st.markdown('<div class="progress-card">', unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
                 calories_needed, tdee = app.calculate_calories_needed(user_profile)
                 st.metric("Калории в день", f"{calories_needed}")
                 st.caption(f"Расход: {tdee} ккал")
@@ -2175,3 +2175,4 @@ st.markdown("""
     <p>Ваш персональный тренер для любого вида фитнеса</p>
 </div>
 """, unsafe_allow_html=True)
+
