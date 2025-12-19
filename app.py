@@ -433,13 +433,13 @@ class FitnessAssistant:
         else:
             bmr = 10 * weight + 6.25 * height - 5 * age - 161
         
-        # Коэффициент активности
+       # Коэффициент активности
         activity_multipliers = {
             'sedentary': 1.2,      # Сидячий образ жизни
             'light': 1.375,        # Легкая активность 1-3 раза в неделю
             'moderate': 1.55,      # Умеренная активность 3-5 раз в неделю
-            'active': 1.725,       Высокая активность 6-7 раз в неделю
-            'very_active': 1.9     # Очень высокая активность
+            'active': 1.725,       # Высокая активность 6-7 раз в неделю
+            'very_active': 1.9,     # Очень высокая активность
         }
         
         tdee = bmr * activity_multipliers.get(activity_level, 1.2)
@@ -1378,3 +1378,4 @@ st.markdown("""
     <p>Ваш персональный тренер для любого вида фитнеса</p>
 </div>
 """, unsafe_allow_html=True)
+
