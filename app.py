@@ -769,7 +769,7 @@ class FitnessAssistant:
             
         except Exception as e:
             # В случае ошибки возвращаем программы по умолчанию
-            st.warning(f"Используются рекомендации по умолчанию")
+            st.warning("Используются рекомендации по умолчанию")
             primary_goal = user_profile.get('goals', {}).get('primary_goal', 'weight_loss')
             return self.training_programs.get(primary_goal, self.training_programs['weight_loss'])[:3]
     
@@ -782,7 +782,7 @@ class FitnessAssistant:
                 if p['id'] == program_id:
                     program = p
                     break
-            if program:
+            if program:  # Добавляем эту проверку для выхода из внешнего цикла
                 break
         
         if not program:
@@ -1472,7 +1472,7 @@ else:
                 calories_needed, tdee = app.calculate_calories_needed(user_profile)
                 st.metric("Калории в день", f"{calories_needed}")
                 st.caption(f"Расход: {tdee} ккал")
-                st.markdown('</div>', unsafe_allow_html=True)
+                st.markdown('</div>", unsafe_allow_html=True)
             
             # Если у пользователя есть текущая программа
             if user_profile.get('current_program'):
