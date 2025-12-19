@@ -88,6 +88,17 @@ st.markdown("""
     .endurance { background: #45b7d1; color: white; }
     .flexibility { background: #96ceb4; color: white; }
     .health { background: #feca57; color: white; }
+    .level-beginner { background: #4CAF50; color: white; }
+    .level-intermediate { background: #2196F3; color: white; }
+    .level-advanced { background: #FF9800; color: white; }
+    .level-pro { background: #f44336; color: white; }
+    .exercise-item {
+        background: #f8f9fa;
+        padding: 1rem;
+        margin: 0.5rem 0;
+        border-radius: 8px;
+        border-left: 4px solid #4CAF50;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -138,6 +149,30 @@ class FitnessAssistant:
                 'icon': '❤️',
                 'color': 'health',
                 'description': 'Улучшение общего состояния здоровья'
+            }
+        }
+        
+        # Уровни сложности
+        self.levels = {
+            'beginner': {
+                'name': 'Начальный',
+                'color': 'level-beginner',
+                'description': 'Для новичков, без опыта тренировок'
+            },
+            'intermediate': {
+                'name': 'Средний',
+                'color': 'level-intermediate',
+                'description': 'Для тех, кто занимается 3-6 месяцев'
+            },
+            'advanced': {
+                'name': 'Продвинутый',
+                'color': 'level-advanced',
+                'description': 'Для опытных, занимающихся более 6 месяцев'
+            },
+            'pro': {
+                'name': 'Профи',
+                'color': 'level-pro',
+                'description': 'Для профессионалов и спортсменов'
             }
         }
         
@@ -193,13 +228,133 @@ class FitnessAssistant:
             }
         }
         
-        # База тренировочных программ
+        # Конкретные упражнения для разных видов тренировок
+        self.exercises = {
+            'yoga': {
+                'beginner': [
+                    {
+                        'name': 'Поза горы (Тадасана)',
+                        'description': 'Стоя прямо, ноги вместе, руки вдоль тела. Дышите глубоко.',
+                        'duration': '2 минуты',
+                        'sets_reps': '3 подхода',
+                        'video_url': 'https://www.youtube.com/watch?v=dAqQqmaIe_o'
+                    },
+                    {
+                        'name': 'Поза ребенка (Баласана)',
+                        'description': 'Сядьте на пятки, наклонитесь вперед, лоб на коврике.',
+                        'duration': '3 минуты',
+                        'sets_reps': '3 подхода',
+                        'video_url': 'https://www.youtube.com/watch?v=2MJGg-dUKh0'
+                    },
+                    {
+                        'name': 'Поза кошки-коровы',
+                        'description': 'На четвереньках, чередуйте прогиб и округление спины.',
+                        'duration': '5 минут',
+                        'sets_reps': '3 подхода',
+                        'video_url': 'https://www.youtube.com/watch?v=0pK7tPvF8_U'
+                    }
+                ],
+                'intermediate': [
+                    {
+                        'name': 'Поза воина I (Вирабхадрасана I)',
+                        'description': 'Широкий выпад, руки вверх, грудная клетка раскрыта.',
+                        'duration': '1 минута на каждую сторону',
+                        'sets_reps': '3 подхода',
+                        'video_url': 'https://www.youtube.com/watch?v=Q6H7-4Zv9p8'
+                    },
+                    {
+                        'name': 'Поза дерева (Врикшасана)',
+                        'description': 'Баланс на одной ноге, вторая стопа на бедре.',
+                        'duration': '1 минута на каждую сторону',
+                        'sets_reps': '3 подхода',
+                        'video_url': 'https://www.youtube.com/watch?v=EqY-8T7hLvY'
+                    }
+                ]
+            },
+            'strength': {
+                'beginner': [
+                    {
+                        'name': 'Приседания без веса',
+                        'description': 'Ноги на ширине плеч, приседайте до параллели с полом.',
+                        'duration': '15 повторений',
+                        'sets_reps': '3 подхода по 15',
+                        'video_url': 'https://www.youtube.com/watch?v=aclHkVaku9U'
+                    },
+                    {
+                        'name': 'Отжимания от колен',
+                        'description': 'Колени на полу, опускайтесь грудью к полу.',
+                        'duration': '10 повторений',
+                        'sets_reps': '3 подхода по 10',
+                        'video_url': 'https://www.youtube.com/watch?v=Eh00_rniF8E'
+                    },
+                    {
+                        'name': 'Планка',
+                        'description': 'Упор на предплечьях, тело прямое как струна.',
+                        'duration': '30 секунд',
+                        'sets_reps': '3 подхода',
+                        'video_url': 'https://www.youtube.com/watch?v=ASdvN_XEl_c'
+                    }
+                ],
+                'intermediate': [
+                    {
+                        'name': 'Приседания с гантелями',
+                        'description': 'С гантелями у плеч, приседайте глубоко.',
+                        'duration': '12 повторений',
+                        'sets_reps': '4 подхода по 12',
+                        'video_url': 'https://www.youtube.com/watch?v=YaXPRqUwItQ'
+                    },
+                    {
+                        'name': 'Становая тяга с гантелями',
+                        'description': 'Наклон с прямой спиной, гантели вдоль ног.',
+                        'duration': '10 повторений',
+                        'sets_reps': '4 подхода по 10',
+                        'video_url': 'https://www.youtube.com/watch?v=0_igODjLiXM'
+                    }
+                ]
+            },
+            'cardio': {
+                'beginner': [
+                    {
+                        'name': 'Бег на месте',
+                        'description': 'Бег на месте с высоким подниманием колен.',
+                        'duration': '2 минуты',
+                        'sets_reps': '3 подхода',
+                        'video_url': 'https://www.youtube.com/watch?v=83Zq5q4QN2w'
+                    },
+                    {
+                        'name': 'Прыжки со скакалкой',
+                        'description': 'Легкие прыжки через скакалку в среднем темпе.',
+                        'duration': '3 минуты',
+                        'sets_reps': '3 подхода',
+                        'video_url': 'https://www.youtube.com/watch?v=1BZM2Vre5oc'
+                    }
+                ],
+                'intermediate': [
+                    {
+                        'name': 'Берпи',
+                        'description': 'Присед -> упор лежа -> отжимание -> прыжок.',
+                        'duration': '45 секунд',
+                        'sets_reps': '4 подхода',
+                        'video_url': 'https://www.youtube.com/watch?v=auBLPXO8Fww'
+                    },
+                    {
+                        'name': 'Скалолаз',
+                        'description': 'В упоре лежа поочередно подтягивайте колени к груди.',
+                        'duration': '1 минута',
+                        'sets_reps': '4 подхода',
+                        'video_url': 'https://www.youtube.com/watch?v=nmwgirgXLYM'
+                    }
+                ]
+            }
+        }
+        
+        # База тренировочных программ с конкретными тренировками
         self.training_programs = {
             'weight_loss': [
                 {
                     'id': 'wl_beginner',
                     'name': 'Похудение для начинающих',
-                    'level': 'Начальный',
+                    'level': 'beginner',
                     'description': 'Программа для мягкого начала похудения',
                     'duration_weeks': 8,
                     'sessions_per_week': 3,
@@ -219,12 +374,38 @@ class FitnessAssistant:
                         'Вес 1 раз в неделю',
                         'Объемы талии и бедер каждые 2 недели',
                         'Фото прогресса каждые 4 недели'
-                    ]
+                    ],
+                    'workouts': {
+                        'day1': {
+                            'title': 'Кардио + Растяжка',
+                            'warmup': '5 минут легкой ходьбы на месте',
+                            'exercises': [
+                                {'type': 'cardio', 'name': 'Бег на месте', 'duration': '10 минут'},
+                                {'type': 'cardio', 'name': 'Прыжки со скакалкой', 'duration': '10 минут'},
+                                {'type': 'cardio', 'name': 'Высокие колени', 'duration': '5 минут'},
+                                {'type': 'stretching', 'name': 'Растяжка ног', 'duration': '5 минут'},
+                                {'type': 'stretching', 'name': 'Растяжка спины', 'duration': '5 минут'}
+                            ],
+                            'cooldown': '5 минут глубокого дыхания'
+                        },
+                        'day2': {
+                            'title': 'Круговая тренировка',
+                            'warmup': '5 минут динамической растяжки',
+                            'exercises': [
+                                {'type': 'strength', 'name': 'Приседания без веса', 'sets': '3', 'reps': '15', 'rest': '30 сек'},
+                                {'type': 'strength', 'name': 'Отжимания от колен', 'sets': '3', 'reps': '10', 'rest': '30 сек'},
+                                {'type': 'strength', 'name': 'Планка', 'sets': '3', 'duration': '30 сек', 'rest': '30 сек'},
+                                {'type': 'cardio', 'name': 'Бег на месте', 'sets': '3', 'duration': '1 мин', 'rest': '30 сек'},
+                                {'type': 'strength', 'name': 'Выпады', 'sets': '3', 'reps': '12 на каждую ногу', 'rest': '30 сек'}
+                            ],
+                            'cooldown': '5 минут растяжки'
+                        }
+                    }
                 },
                 {
-                    'id': 'wl_intensive',
+                    'id': 'wl_intermediate',
                     'name': 'Интенсивное похудение',
-                    'level': 'Средний',
+                    'level': 'intermediate',
                     'description': 'Программа для быстрого снижения веса',
                     'duration_weeks': 6,
                     'sessions_per_week': 5,
@@ -242,13 +423,31 @@ class FitnessAssistant:
                         '5-6 небольших приемов пищи',
                         'Белок 1.5г на кг веса'
                     ]
+                },
+                {
+                    'id': 'wl_advanced',
+                    'name': 'Экстремальное похудение',
+                    'level': 'advanced',
+                    'description': 'Программа для опытных, желающих быстро похудеть',
+                    'duration_weeks': 4,
+                    'sessions_per_week': 6,
+                    'session_duration': 60,
+                    'activities': ['circuit_training', 'cardio', 'strength'],
+                    'schedule': [
+                        'День 1: ВИИТ кардио 45 мин',
+                        'День 2: Силовая тренировка верх тела 50 мин',
+                        'День 3: Интервальный бег 40 мин',
+                        'День 4: Силовая тренировка ниж тела 50 мин',
+                        'День 5: Круговая тренировка 55 мин',
+                        'День 6: Плавание/Велосипед 60 мин'
+                    ]
                 }
             ],
             'muscle_gain': [
                 {
                     'id': 'mg_beginner',
                     'name': 'Набор массы для начинающих',
-                    'level': 'Начальный',
+                    'level': 'beginner',
                     'description': 'Базовая программа для набора мышечной массы',
                     'duration_weeks': 12,
                     'sessions_per_week': 4,
@@ -261,13 +460,48 @@ class FitnessAssistant:
                         'День 4: Плечи, руки',
                         'День 5: Кардио 20 мин'
                     ]
+                },
+                {
+                    'id': 'mg_intermediate',
+                    'name': 'Набор массы средний уровень',
+                    'level': 'intermediate',
+                    'description': 'Программа для продолжающих',
+                    'duration_weeks': 10,
+                    'sessions_per_week': 5,
+                    'session_duration': 70,
+                    'activities': ['strength', 'cardio'],
+                    'schedule': [
+                        'День 1: Грудь + Трицепс',
+                        'День 2: Спина + Бицепс',
+                        'День 3: Ноги',
+                        'День 4: Плечи',
+                        'День 5: Кардио + Пресс'
+                    ]
+                },
+                {
+                    'id': 'mg_advanced',
+                    'name': 'Профессиональный набор массы',
+                    'level': 'advanced',
+                    'description': 'Интенсивная программа для опытных атлетов',
+                    'duration_weeks': 8,
+                    'sessions_per_week': 6,
+                    'session_duration': 90,
+                    'activities': ['strength', 'cardio'],
+                    'schedule': [
+                        'День 1: Грудь + Трицепс',
+                        'День 2: Спина + Бицепс',
+                        'День 3: Ноги',
+                        'День 4: Плечи + Трапеции',
+                        'День 5: Руки + Пресс',
+                        'День 6: Кардио + Слабое звено'
+                    ]
                 }
             ],
             'flexibility': [
                 {
                     'id': 'flex_beginner',
                     'name': 'Йога для начинающих',
-                    'level': 'Начальный',
+                    'level': 'beginner',
                     'description': 'Программа для развития гибкости и расслабления',
                     'duration_weeks': 4,
                     'sessions_per_week': 5,
@@ -282,9 +516,9 @@ class FitnessAssistant:
                     ]
                 },
                 {
-                    'id': 'flex_pilates',
+                    'id': 'flex_intermediate',
                     'name': 'Пилатес для гибкости',
-                    'level': 'Средний',
+                    'level': 'intermediate',
                     'description': 'Программа пилатеса для развития гибкости',
                     'duration_weeks': 6,
                     'sessions_per_week': 4,
@@ -296,13 +530,31 @@ class FitnessAssistant:
                         'День 3: Пилатес для пресса 45 мин',
                         'День 4: Йога-стретчинг 35 мин'
                     ]
+                },
+                {
+                    'id': 'flex_advanced',
+                    'name': 'Продвинутая растяжка',
+                    'level': 'advanced',
+                    'description': 'Программа для достижения максимальной гибкости',
+                    'duration_weeks': 8,
+                    'sessions_per_week': 6,
+                    'session_duration': 50,
+                    'activities': ['yoga', 'stretching', 'pilates'],
+                    'schedule': [
+                        'День 1: Глубокая растяжка ног',
+                        'День 2: Йога для гибкости спины',
+                        'День 3: Растяжка всего тела',
+                        'День 4: Пилатес для продвинутых',
+                        'День 5: Йога балансы',
+                        'День 6: Активная растяжка'
+                    ]
                 }
             ],
             'endurance': [
                 {
                     'id': 'end_beginner',
                     'name': 'Кардио для выносливости',
-                    'level': 'Начальный',
+                    'level': 'beginner',
                     'description': 'Программа для улучшения кардио-выносливости',
                     'duration_weeks': 8,
                     'sessions_per_week': 3,
@@ -313,13 +565,47 @@ class FitnessAssistant:
                         'День 2: Велотренажер 35 мин',
                         'День 3: Круговая тренировка 40 мин'
                     ]
+                },
+                {
+                    'id': 'end_intermediate',
+                    'name': 'Средний уровень выносливости',
+                    'level': 'intermediate',
+                    'description': 'Программа для повышения выносливости',
+                    'duration_weeks': 6,
+                    'sessions_per_week': 4,
+                    'session_duration': 50,
+                    'activities': ['cardio', 'circuit_training'],
+                    'schedule': [
+                        'День 1: Интервальный бег 40 мин',
+                        'День 2: Велосипед 45 мин',
+                        'День 3: Плавание 40 мин',
+                        'День 4: Круговая тренировка 50 мин'
+                    ]
+                },
+                {
+                    'id': 'end_advanced',
+                    'name': 'Профессиональная выносливость',
+                    'level': 'advanced',
+                    'description': 'Программа для подготовки к марафону',
+                    'duration_weeks': 12,
+                    'sessions_per_week': 6,
+                    'session_duration': 70,
+                    'activities': ['cardio', 'circuit_training'],
+                    'schedule': [
+                        'День 1: Длинный бег 60 мин',
+                        'День 2: Интервалы 45 мин',
+                        'День 3: Темповый бег 50 мин',
+                        'День 4: Восстановительный бег 40 мин',
+                        'День 5: Силовая на выносливость 55 мин',
+                        'День 6: Кросс-тренинг 60 мин'
+                    ]
                 }
             ],
             'health': [
                 {
-                    'id': 'health_balance',
+                    'id': 'health_beginner',
                     'name': 'Сбалансированное здоровье',
-                    'level': 'Начальный',
+                    'level': 'beginner',
                     'description': 'Программа для общего оздоровления',
                     'duration_weeks': 8,
                     'sessions_per_week': 4,
@@ -335,6 +621,23 @@ class FitnessAssistant:
                         'Сбалансированное питание',
                         'Достаточное количество воды',
                         'Регулярные приемы пищи'
+                    ]
+                },
+                {
+                    'id': 'health_intermediate',
+                    'name': 'Активное здоровье',
+                    'level': 'intermediate',
+                    'description': 'Программа для поддержания активного образа жизни',
+                    'duration_weeks': 10,
+                    'sessions_per_week': 5,
+                    'session_duration': 50,
+                    'activities': ['yoga', 'cardio', 'strength', 'pilates'],
+                    'schedule': [
+                        'День 1: Утренняя йога 30 мин',
+                        'День 2: Кардио-интервалы 40 мин',
+                        'День 3: Силовая тренировка 45 мин',
+                        'День 4: Пилатес 40 мин',
+                        'День 5: Плавание/Велосипед 50 мин'
                     ]
                 }
             ]
@@ -470,6 +773,41 @@ class FitnessAssistant:
             primary_goal = user_profile.get('goals', {}).get('primary_goal', 'weight_loss')
             return self.training_programs.get(primary_goal, self.training_programs['weight_loss'])[:3]
     
+    def get_exercises_for_program(self, program_id, day=None):
+        """Возвращает упражнения для конкретной программы и дня"""
+        # Находим программу
+        program = None
+        for goal_programs in self.training_programs.values():
+            for p in goal_programs:
+                if p['id'] == program_id:
+                    program = p
+                    break
+            if program:
+                break
+        
+        if not program:
+            return []
+        
+        # Если есть конкретные тренировки в программе
+        if 'workouts' in program:
+            if day and day in program['workouts']:
+                return program['workouts'][day]
+            elif program['workouts']:
+                # Возвращаем первую тренировку, если день не указан
+                first_day = list(program['workouts'].keys())[0]
+                return program['workouts'][first_day]
+        
+        # Если нет конкретных тренировок, генерируем на основе уровня и активностей
+        level = program.get('level', 'beginner')
+        activities = program.get('activities', [])
+        
+        exercises_list = []
+        for activity in activities:
+            if activity in self.exercises and level in self.exercises[activity]:
+                exercises_list.extend(self.exercises[activity][level])
+        
+        return exercises_list
+    
     def calculate_calories_needed(self, user_profile):
         """Рассчитывает суточную потребность в калориях"""
         personal_info = user_profile.get('personal_info', {})
@@ -546,7 +884,9 @@ class FitnessAssistant:
                 'personal_info': {},
                 'goals': {},
                 'preferred_activities': [],
-                'questionnaire_completed': False
+                'questionnaire_completed': False,
+                'current_program': None,
+                'program_start_date': None
             }
             self.save_user_profile(username, profile)
             
@@ -599,6 +939,10 @@ class FitnessAssistant:
                     profile['questionnaire_completed'] = False
                 if 'preferred_activities' not in profile:
                     profile['preferred_activities'] = []
+                if 'current_program' not in profile:
+                    profile['current_program'] = None
+                if 'program_start_date' not in profile:
+                    profile['program_start_date'] = None
                 return profile
             else:
                 return {
@@ -607,7 +951,9 @@ class FitnessAssistant:
                     'personal_info': {},
                     'goals': {},
                     'preferred_activities': [],
-                    'questionnaire_completed': False
+                    'questionnaire_completed': False,
+                    'current_program': None,
+                    'program_start_date': None
                 }
         except:
             return {
@@ -616,7 +962,9 @@ class FitnessAssistant:
                 'personal_info': {},
                 'goals': {},
                 'preferred_activities': [],
-                'questionnaire_completed': False
+                'questionnaire_completed': False,
+                'current_program': None,
+                'program_start_date': None
             }
     
     def complete_questionnaire(self, username, personal_info, goals, preferred_activities):
@@ -636,6 +984,13 @@ class FitnessAssistant:
         
         return self.save_user_profile(username, profile)
     
+    def set_current_program(self, username, program_id):
+        """Устанавливает текущую программу для пользователя"""
+        profile = self.load_user_profile(username)
+        profile['current_program'] = program_id
+        profile['program_start_date'] = datetime.now().isoformat()
+        return self.save_user_profile(username, profile)
+    
     def get_bmi_category(self, bmi):
         """Определяет категорию ИМТ"""
         if bmi < 18.5:
@@ -647,7 +1002,7 @@ class FitnessAssistant:
         else:
             return 'Ожирение'
     
-    def add_workout(self, username, workout_type, duration, intensity, notes=''):
+    def add_workout(self, username, workout_type, duration, intensity, notes='', program_id=None, day=None):
         """Добавляет тренировку пользователя"""
         try:
             new_data = {
@@ -655,7 +1010,9 @@ class FitnessAssistant:
                 'workout_type': workout_type,
                 'duration': int(duration),
                 'intensity': intensity,
-                'notes': notes
+                'notes': notes,
+                'program_id': program_id if program_id else '',
+                'day': day if day else ''
             }
             
             df = pd.DataFrame([new_data])
@@ -678,10 +1035,10 @@ class FitnessAssistant:
         filename = self.get_user_filename(username)
         if os.path.exists(filename):
             df = pd.read_csv(filename)
-            df['date'] = pd.to_datetime(df['date'])
-            return df.sort_values('date', ascending=False)
-        else:
-            return pd.DataFrame(columns=['date', 'workout_type', 'duration', 'intensity', 'notes'])
+            if not df.empty:
+                df['date'] = pd.to_datetime(df['date'])
+                return df.sort_values('date', ascending=False)
+        return pd.DataFrame(columns=['date', 'workout_type', 'duration', 'intensity', 'notes', 'program_id', 'day'])
     
     def get_statistics(self, username):
         """Возвращает статистику тренировок пользователя"""
@@ -804,6 +1161,16 @@ class FitnessAssistant:
                     'unlocked': True
                 })
         
+        # Достижение за выбор программы
+        if profile.get('current_program'):
+            achievements.append({
+                'id': 'program_started',
+                'title': '📋 Программа начата',
+                'description': 'Вы начали тренировочную программу',
+                'icon': '📋',
+                'unlocked': True
+            })
+        
         return achievements
 
 # Инициализация приложения
@@ -823,6 +1190,8 @@ def initialize_session_state():
         st.session_state.show_questionnaire = False
     if 'current_page' not in st.session_state:
         st.session_state.current_page = "📊 Главная"
+    if 'show_program_details' not in st.session_state:
+        st.session_state.show_program_details = None
 
 initialize_session_state()
 
@@ -1004,6 +1373,32 @@ else:
             </div>
             """, unsafe_allow_html=True)
     
+    # Показываем текущую программу
+    if user_profile.get('current_program'):
+        current_program_id = user_profile['current_program']
+        # Находим информацию о программе
+        program_info = None
+        for goal, programs in app.training_programs.items():
+            for program in programs:
+                if program['id'] == current_program_id:
+                    program_info = program
+                    break
+            if program_info:
+                break
+        
+        if program_info:
+            level_info = app.levels.get(program_info['level'], {})
+            st.sidebar.markdown(f"""
+            <div style='text-align: center; margin: 1rem 0;'>
+                <span class='sport-icon'>📋</span>
+                <h5>Текущая программа</h5>
+                <p><strong>{program_info['name']}</strong></p>
+                <span class='goal-badge {level_info.get("color", "level-beginner")}'>
+                    {level_info.get('name', 'Начальный')}
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+    
     # Основная навигация
     with st.sidebar:
         st.title("Навигация")
@@ -1079,6 +1474,40 @@ else:
                 st.caption(f"Расход: {tdee} ккал")
                 st.markdown('</div>', unsafe_allow_html=True)
             
+            # Если у пользователя есть текущая программа
+            if user_profile.get('current_program'):
+                st.markdown("### 🏃 Текущая программа тренировок")
+                
+                current_program_id = user_profile['current_program']
+                # Находим программу
+                current_program = None
+                for goal, programs in app.training_programs.items():
+                    for program in programs:
+                        if program['id'] == current_program_id:
+                            current_program = program
+                            break
+                    if current_program:
+                        break
+                
+                if current_program:
+                    level_info = app.levels.get(current_program['level'], {})
+                    
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        st.markdown(f"#### {current_program['name']}")
+                        st.markdown(f"**Уровень:** <span class='goal-badge {level_info.get(\"color\", \"level-beginner\")}'>{level_info.get('name', 'Начальный')}</span>", unsafe_allow_html=True)
+                        st.markdown(f"**Продолжительность:** {current_program['duration_weeks']} недель")
+                        st.markdown(f"**Тренировок в неделю:** {current_program['sessions_per_week']}")
+                    
+                    with col2:
+                        if st.button("📋 Показать тренировку на сегодня", use_container_width=True):
+                            st.session_state.show_program_details = current_program_id
+                            st.rerun()
+                    
+                    st.markdown("**Расписание:**")
+                    for session in current_program.get('schedule', []):
+                        st.markdown(f"- {session}")
+            
             # Рекомендуемые программы на основе ML
             st.markdown("### 🎯 Персональные рекомендации")
             
@@ -1087,6 +1516,8 @@ else:
             if recommended_programs:
                 for program in recommended_programs:
                     with st.container():
+                        level_info = app.levels.get(program['level'], {})
+                        
                         # Получаем информацию об активностях
                         activity_icons = ""
                         for activity_id in program.get('activities', []):
@@ -1096,7 +1527,7 @@ else:
                         st.markdown(f"""
                         <div class="training-card">
                             <h3>{activity_icons} {program['name']}</h3>
-                            <p><strong>Уровень:</strong> {program['level']} | <strong>Продолжительность:</strong> {program['duration_weeks']} недель</p>
+                            <p><strong>Уровень:</strong> <span class='goal-badge {level_info.get("color", "level-beginner")}'>{level_info.get('name', 'Начальный')}</span> | <strong>Продолжительность:</strong> {program['duration_weeks']} недель</p>
                             <p>{program['description']}</p>
                             <p><strong>Расписание:</strong></p>
                             <ul>
@@ -1114,9 +1545,21 @@ else:
                                 st.markdown(f"<li>{tip}</li>", unsafe_allow_html=True)
                             st.markdown("</ul>", unsafe_allow_html=True)
                         
-                        # Кнопка для выбора программы
-                        if st.button(f"🎯 Выбрать эту программу", key=f"select_{program['id']}", use_container_width=True):
-                            st.success(f"✅ Программа '{program['name']}' выбрана!")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            # Кнопка для выбора программы
+                            if st.button(f"🎯 Выбрать программу", key=f"select_{program['id']}", use_container_width=True):
+                                if app.set_current_program(st.session_state.current_user, program['id']):
+                                    st.success(f"✅ Программа '{program['name']}' выбрана!")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Ошибка при выборе программы")
+                        
+                        with col2:
+                            # Кнопка для просмотра деталей
+                            if st.button(f"📋 Посмотреть тренировки", key=f"details_{program['id']}", use_container_width=True):
+                                st.session_state.show_program_details = program['id']
+                                st.rerun()
             else:
                 st.info("""
                 💡 **Рекомендации появятся после заполнения анкеты.**
@@ -1147,42 +1590,180 @@ else:
         if not user_profile.get('questionnaire_completed', False):
             st.warning("Заполните анкету для получения персональных программ")
         else:
-            # Показываем все программы для цели пользователя
-            goal = user_profile.get('goals', {}).get('primary_goal', 'weight_loss')
-            goal_programs = app.training_programs.get(goal, [])
-            
-            if goal_programs:
-                st.success(f"📊 Найдено {len(goal_programs)} программ для вашей цели")
+            # Показываем текущую программу
+            if user_profile.get('current_program'):
+                current_program_id = user_profile['current_program']
+                current_program = None
+                for goal, programs in app.training_programs.items():
+                    for program in programs:
+                        if program['id'] == current_program_id:
+                            current_program = program
+                            break
+                    if current_program:
+                        break
                 
-                for program in goal_programs:
-                    with st.expander(f"{program['name']} ({program['level']})"):
-                        col1, col2 = st.columns([2, 1])
+                if current_program:
+                    st.markdown("### 🏃 Текущая программа")
+                    level_info = app.levels.get(current_program['level'], {})
+                    
+                    with st.expander(f"📋 {current_program['name']} ({level_info.get('name', 'Начальный')})", expanded=True):
+                        col1, col2 = st.columns([3, 1])
                         
                         with col1:
-                            st.write(f"**Описание:** {program['description']}")
-                            st.write(f"**Продолжительность:** {program['duration_weeks']} недель")
-                            st.write(f"**Тренировок в неделю:** {program['sessions_per_week']}")
-                            st.write(f"**Длительность тренировки:** {program['session_duration']} минут")
+                            st.write(f"**Описание:** {current_program['description']}")
+                            st.write(f"**Продолжительность:** {current_program['duration_weeks']} недель")
+                            st.write(f"**Тренировок в неделю:** {current_program['sessions_per_week']}")
+                            st.write(f"**Длительность тренировки:** {current_program['session_duration']} минут")
                             
                             st.write("**Расписание:**")
-                            for session in program.get('schedule', []):
+                            for session in current_program.get('schedule', []):
                                 st.write(f"- {session}")
                         
                         with col2:
                             # Показываем иконки активностей
                             st.write("**Активности:**")
-                            for activity_id in program.get('activities', []):
+                            for activity_id in current_program.get('activities', []):
                                 activity = app.activity_types.get(activity_id, {})
                                 st.write(f"{activity.get('icon', '🏃')} {activity.get('name', activity_id)}")
                             
-                            if st.button(f"✅ Начать программу", key=f"start_{program['id']}"):
-                                st.success(f"Программа '{program['name']}' начата!")
+                            if st.button("📋 Показать тренировки", key="show_current_program_workouts"):
+                                st.session_state.show_program_details = current_program_id
+                                st.rerun()
+            
+            # Разделитель
+            st.markdown("---")
+            
+            # Показываем все программы для цели пользователя
+            goal = user_profile.get('goals', {}).get('primary_goal', 'weight_loss')
+            goal_programs = app.training_programs.get(goal, [])
+            
+            if goal_programs:
+                st.markdown(f"### 📊 Программы для вашей цели ({app.goals.get(goal, {}).get('name', 'Похудение')})")
+                
+                # Фильтр по уровню
+                level_filter = st.selectbox(
+                    "Фильтр по уровню:",
+                    ["Все уровни", "Начальный", "Средний", "Продвинутый", "Профи"],
+                    key="program_level_filter"
+                )
+                
+                filtered_programs = []
+                for program in goal_programs:
+                    level_name = app.levels.get(program['level'], {}).get('name', 'Начальный')
+                    if level_filter == "Все уровни" or level_name == level_filter:
+                        filtered_programs.append(program)
+                
+                if filtered_programs:
+                    st.success(f"📊 Найдено {len(filtered_programs)} программ")
+                    
+                    for program in filtered_programs:
+                        level_info = app.levels.get(program['level'], {})
+                        
+                        with st.expander(f"{program['name']} ({level_info.get('name', 'Начальный')})"):
+                            col1, col2 = st.columns([2, 1])
+                            
+                            with col1:
+                                st.write(f"**Описание:** {program['description']}")
+                                st.write(f"**Продолжительность:** {program['duration_weeks']} недель")
+                                st.write(f"**Тренировок в неделю:** {program['sessions_per_week']}")
+                                st.write(f"**Длительность тренировки:** {program['session_duration']} минут")
+                                
+                                st.write("**Расписание:**")
+                                for session in program.get('schedule', []):
+                                    st.write(f"- {session}")
+                            
+                            with col2:
+                                # Показываем иконки активностей
+                                st.write("**Активности:**")
+                                for activity_id in program.get('activities', []):
+                                    activity = app.activity_types.get(activity_id, {})
+                                    st.write(f"{activity.get('icon', '🏃')} {activity.get('name', activity_id)}")
+                                
+                                col_btn1, col_btn2 = st.columns(2)
+                                with col_btn1:
+                                    if st.button(f"✅ Выбрать", key=f"select_program_{program['id']}"):
+                                        if app.set_current_program(st.session_state.current_user, program['id']):
+                                            st.success(f"Программа '{program['name']}' выбрана!")
+                                            st.rerun()
+                                with col_btn2:
+                                    if st.button(f"📋", key=f"view_program_{program['id']}"):
+                                        st.session_state.show_program_details = program['id']
+                                        st.rerun()
+                else:
+                    st.info(f"Нет программ для выбранного уровня '{level_filter}'")
             else:
                 st.info("Программы для вашей цели находятся в разработке. Скоро появятся!")
 
-    # Добавление тренировки
+    # Добавление тренировки (с возможностью добавления по программе)
     elif st.session_state.current_page == "➕ Добавить тренировку":
         st.markdown('<h2 class="sub-header">➕ Добавить тренировку</h2>', unsafe_allow_html=True)
+        
+        # Если есть текущая программа, предлагаем добавить тренировку по программе
+        current_program = user_profile.get('current_program')
+        
+        if current_program and st.session_state.get('show_program_details') == current_program:
+            # Находим программу
+            program_info = None
+            for goal, programs in app.training_programs.items():
+                for program in programs:
+                    if program['id'] == current_program:
+                        program_info = program
+                        break
+                if program_info:
+                    break
+            
+            if program_info:
+                st.info(f"Вы добавляете тренировку по программе: **{program_info['name']}**")
+                
+                # Получаем упражнения для программы
+                exercises = app.get_exercises_for_program(current_program)
+                
+                if exercises:
+                    if isinstance(exercises, dict) and 'exercises' in exercises:
+                        # Если это структурированная тренировка
+                        st.markdown(f"### {exercises.get('title', 'Тренировка')}")
+                        
+                        if 'warmup' in exercises:
+                            st.markdown(f"**Разминка:** {exercises['warmup']}")
+                        
+                        st.markdown("### Упражнения:")
+                        for exercise in exercises['exercises']:
+                            with st.container():
+                                st.markdown(f"""
+                                <div class="exercise-item">
+                                    <h4>{exercise.get('name', 'Упражнение')}</h4>
+                                    <p><strong>Тип:</strong> {exercise.get('type', 'Общее')}</p>
+                                """, unsafe_allow_html=True)
+                                
+                                if 'duration' in exercise:
+                                    st.markdown(f"<p><strong>Длительность:</strong> {exercise['duration']}</p>", unsafe_allow_html=True)
+                                if 'sets' in exercise and 'reps' in exercise:
+                                    st.markdown(f"<p><strong>Подходы/Повторения:</strong> {exercise['sets']} × {exercise['reps']}</p>", unsafe_allow_html=True)
+                                if 'rest' in exercise:
+                                    st.markdown(f"<p><strong>Отдых:</strong> {exercise['rest']}</p>", unsafe_allow_html=True)
+                                
+                                st.markdown("</div>", unsafe_allow_html=True)
+                        
+                        if 'cooldown' in exercises:
+                            st.markdown(f"**Заминка:** {exercises['cooldown']}")
+                    
+                    elif isinstance(exercises, list):
+                        # Если это список упражнений
+                        st.markdown("### Упражнения из программы:")
+                        for exercise in exercises:
+                            with st.container():
+                                st.markdown(f"""
+                                <div class="exercise-item">
+                                    <h4>{exercise.get('name', 'Упражнение')}</h4>
+                                    <p>{exercise.get('description', '')}</p>
+                                    <p><strong>Длительность:</strong> {exercise.get('duration', '')}</p>
+                                    <p><strong>Подходы/Повторения:</strong> {exercise.get('sets_reps', '')}</p>
+                                """, unsafe_allow_html=True)
+                                
+                                if 'video_url' in exercise:
+                                    st.markdown(f"<p><a href='{exercise['video_url']}' target='_blank'>🎥 Смотреть видео</a></p>", unsafe_allow_html=True)
+                                
+                                st.markdown("</div>", unsafe_allow_html=True)
         
         with st.form("add_workout_form"):
             # Получаем доступные виды тренировок из предпочитаемых активностей
@@ -1220,6 +1801,14 @@ else:
             
             notes = st.text_area("Заметки:", placeholder="Как прошла тренировка? Что понравилось?", key="workout_notes")
             
+            # Если есть текущая программа, добавляем информацию о ней
+            program_id = None
+            day = None
+            if current_program:
+                program_id = current_program
+                day_options = [f"День {i}" for i in range(1, 8)]
+                day = st.selectbox("День программы:", options=day_options, key="workout_day")
+            
             submit_button = st.form_submit_button("💾 Сохранить тренировку", use_container_width=True)
             
             if submit_button:
@@ -1228,12 +1817,17 @@ else:
                     workout_type_clean, 
                     duration, 
                     intensity, 
-                    notes
+                    notes,
+                    program_id,
+                    day
                 )
                 
                 if success:
                     st.success(message)
                     st.balloons()
+                    # Сбрасываем просмотр программы
+                    if 'show_program_details' in st.session_state:
+                        st.session_state.show_program_details = None
                     st.rerun()
                 else:
                     st.error(message)
@@ -1368,6 +1962,7 @@ else:
             🌟 **Месячная серия** - 30 тренировок подряд
             📝 **Анкета заполнена** - Заполнение анкеты
             🏆 **Цель достигнута** - Достижение целевого веса
+            📋 **Программа начата** - Начало тренировочной программы
             """)
 
     # Мой профиль
@@ -1470,11 +2065,113 @@ else:
                     else:
                         st.error("❌ Ошибка обновления профиля")
 
+# Обработка просмотра деталей программы (модальное окно)
+if st.session_state.get('show_program_details'):
+    program_id = st.session_state.show_program_details
+    
+    # Находим программу
+    program_info = None
+    for goal, programs in app.training_programs.items():
+        for program in programs:
+            if program['id'] == program_id:
+                program_info = program
+                break
+        if program_info:
+            break
+    
+    if program_info:
+        # Создаем модальное окно
+        with st.container():
+            st.markdown("---")
+            st.markdown(f"### 📋 {program_info['name']}")
+            
+            level_info = app.levels.get(program_info['level'], {})
+            st.markdown(f"**Уровень:** <span class='goal-badge {level_info.get(\"color\", \"level-beginner\")}'>{level_info.get('name', 'Начальный')}</span>", unsafe_allow_html=True)
+            
+            # Получаем упражнения для программы
+            exercises = app.get_exercises_for_program(program_id)
+            
+            if exercises:
+                if isinstance(exercises, dict) and 'exercises' in exercises:
+                    # Если это структурированная тренировка
+                    st.markdown(f"#### {exercises.get('title', 'Тренировка')}")
+                    
+                    if 'warmup' in exercises:
+                        st.markdown(f"**Разминка:** {exercises['warmup']}")
+                    
+                    st.markdown("##### Упражнения:")
+                    for i, exercise in enumerate(exercises['exercises']):
+                        with st.container():
+                            st.markdown(f"""
+                            <div class="exercise-item">
+                                <h5>{i+1}. {exercise.get('name', 'Упражнение')}</h5>
+                                <p><strong>Тип:</strong> {exercise.get('type', 'Общее')}</p>
+                            """, unsafe_allow_html=True)
+                            
+                            if 'duration' in exercise:
+                                st.markdown(f"<p><strong>Длительность:</strong> {exercise['duration']}</p>", unsafe_allow_html=True)
+                            if 'sets' in exercise and 'reps' in exercise:
+                                st.markdown(f"<p><strong>Подходы/Повторения:</strong> {exercise['sets']} × {exercise['reps']}</p>", unsafe_allow_html=True)
+                            if 'rest' in exercise:
+                                st.markdown(f"<p><strong>Отдых:</strong> {exercise['rest']}</p>", unsafe_allow_html=True)
+                            
+                            st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    if 'cooldown' in exercises:
+                        st.markdown(f"**Заминка:** {exercises['cooldown']}")
+                    
+                    # Кнопка для добавления этой тренировки
+                    st.markdown("---")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("➕ Добавить эту тренировку", use_container_width=True):
+                            st.session_state.current_page = "➕ Добавить тренировку"
+                            st.rerun()
+                    with col2:
+                        if st.button("❌ Закрыть", use_container_width=True):
+                            st.session_state.show_program_details = None
+                            st.rerun()
+                
+                elif isinstance(exercises, list):
+                    # Если это список упражнений
+                    st.markdown("##### Упражнения:")
+                    for i, exercise in enumerate(exercises):
+                        with st.container():
+                            st.markdown(f"""
+                            <div class="exercise-item">
+                                <h5>{i+1}. {exercise.get('name', 'Упражнение')}</h5>
+                                <p>{exercise.get('description', '')}</p>
+                                <p><strong>Длительность:</strong> {exercise.get('duration', '')}</p>
+                                <p><strong>Подходы/Повторения:</strong> {exercise.get('sets_reps', '')}</p>
+                            """, unsafe_allow_html=True)
+                            
+                            if 'video_url' in exercise:
+                                st.markdown(f"<p><a href='{exercise['video_url']}' target='_blank'>🎥 Смотреть видео</a></p>", unsafe_allow_html=True)
+                            
+                            st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    # Кнопка для добавления этой тренировки
+                    st.markdown("---")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("➕ Добавить эту тренировку", use_container_width=True):
+                            st.session_state.current_page = "➕ Добавить тренировку"
+                            st.rerun()
+                    with col2:
+                        if st.button("❌ Закрыть", use_container_width=True):
+                            st.session_state.show_program_details = None
+                            st.rerun()
+            else:
+                st.info("Для этой программы пока нет конкретных упражнений.")
+                if st.button("❌ Закрыть", use_container_width=True):
+                    st.session_state.show_program_details = None
+                    st.rerun()
+
 # Футер
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #666;'>
-    <p>🧘 <strong>Фитнес Помощник v6.0</strong> | Умный подбор тренировок на основе ваших данных</p>
+    <p>🧘 <strong>Фитнес Помощник v7.0</strong> | Умный подбор тренировок на основе ваших данных</p>
     <p>Ваш персональный тренер для любого вида фитнеса</p>
 </div>
 """, unsafe_allow_html=True)
