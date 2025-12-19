@@ -2086,7 +2086,7 @@ if st.session_state.get('show_program_details'):
             st.markdown(f"### 📋 {program_info['name']}")
             
             level_info = app.levels.get(program_info['level'], {})
-                        st.markdown(f"**Уровень:** <span class='goal-badge {level_info.get('color', 'level-beginner')}'>{level_info.get('name', 'Начальный')}</span>", unsafe_allow_html=True)
+            st.markdown(f"**Уровень:** <span class='goal-badge {level_info.get('color', 'level-beginner')}'>{level_info.get('name', 'Начальный')}</span>", unsafe_allow_html=True)
             
             # Получаем упражнения для программы
             exercises = app.get_exercises_for_program(program_id)
@@ -2175,6 +2175,7 @@ st.markdown("""
     <p>Ваш персональный тренер для любого вида фитнеса</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
