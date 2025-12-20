@@ -634,7 +634,7 @@ class SelfLearningFitnessAssistant:
             
             return True
         except Exception as e:
-            st.error(f"❌ Ошибка при обучении начальной модели: {e}")
+            print(f"❌ Ошибка при обучении начальной модели: {e}")
             return False
     
     def collect_feedback(self, username, program_id, rating, user_goal, actual_goal=None, comment=''):
@@ -1389,6 +1389,12 @@ def initialize_session_state():
         st.session_state.feedback_submitted = {}
     if 'rating_temp' not in st.session_state:
         st.session_state.rating_temp = {}
+    if 'selected_program_for_workout' not in st.session_state:
+        st.session_state.selected_program_for_workout = None
+    if 'selected_day_for_workout' not in st.session_state:
+        st.session_state.selected_day_for_workout = None
+    if 'selected_workout_title' not in st.session_state:
+        st.session_state.selected_workout_title = None
 
 initialize_session_state()
 
@@ -1842,12 +1848,10 @@ else:
                         ratings = ["🤬", "😞", "😐", "🙂", "😍"]
                         ratings_values = [1, 2, 3, 4, 5]
                         
-                        rating_submitted = False
-                        
                         for idx, (col, emoji, rating_val) in enumerate(zip(feedback_cols, ratings, ratings_values)):
                             with col:
                                 # Создаем уникальный ключ для каждой кнопки
-                                button_key = f"rating_{program['id']}_{rating_val}"
+                                button_key = f"rate_btn_{program['id']}_{rating_val}"
                                 
                                 if st.button(emoji, key=button_key, use_container_width=True):
                                     st.session_state.rating_temp[feedback_key] = rating_val
@@ -1891,7 +1895,8 @@ else:
                                 )
                                 comment = st.text_area("Дополнительные комментарии:", key=f"comment_{program['id']}")
                                 
-                                if st.form_submit_button("Отправить подробный отзыв"):
+                                submit_feedback = st.form_submit_button("Отправить подробный отзыв")
+                                if submit_feedback:
                                     success, message = app.collect_feedback(
                                         st.session_state.current_user,
                                         program['id'],
@@ -1903,11 +1908,13 @@ else:
                                     if success:
                                         st.success("Спасибо за подробный отзыв! Это очень поможет улучшить рекомендации.")
                                         st.session_state.feedback_submitted[feedback_key] = True
+                                        st.rerun()
                                     else:
                                         st.error(message)
-                                    st.rerun()
                         
                         st.markdown('</div>', unsafe_allow_html=True)
+                        
+                        st.markdown('</div>', unsafe_allow_html=True)  # Закрываем training-card
             else:
                 st.info("""
                 💡 **Рекомендации появятся после заполнения анкеты.**
@@ -2051,6 +2058,26 @@ else:
             # Получаем доступные виды тренировок из предпочитаемых активностей
             preferred_activities = user_profile.get('preferred_activities', [])
             
+            # Автозаполнение если перешли из деталей программы
+            auto_workout_type = ""
+            auto_day = ""
+            
+            if st.session_state.selected_program_for_workout:
+                program_info = None
+                for goal, programs in app.training_programs.items():
+                    for program in programs:
+                        if program['id'] == st.session_state.selected_program_for_workout:
+                            program_info = program
+                            break
+                    if program_info:
+                        break
+                
+                if program_info and st.session_state.selected_workout_title:
+                    auto_workout_type = st.session_state.selected_workout_title
+                
+                if st.session_state.selected_day_for_workout:
+                    auto_day = st.session_state.selected_day_for_workout
+            
             if preferred_activities:
                 workout_options = []
                 workout_mapping = {}
@@ -2060,14 +2087,25 @@ else:
                     workout_options.append(display_name)
                     workout_mapping[display_name] = activity.get('name', activity_id)
                 
-                workout_type = st.selectbox(
+                # Добавляем автозаполненный вариант если есть
+                if auto_workout_type and auto_workout_type not in [app.activity_types.get(a, {}).get('name', a) for a in preferred_activities]:
+                    workout_options.insert(0, f"🏆 {auto_workout_type}")
+                    workout_mapping[f"🏆 {auto_workout_type}"] = auto_workout_type
+                
+                workout_type_display = st.selectbox(
                     "Вид тренировки:",
                     options=workout_options,
+                    index=0 if auto_workout_type else None,
                     key="workout_type_select"
                 )
-                workout_type_clean = workout_mapping[workout_type]
+                workout_type_clean = workout_mapping[workout_type_display]
             else:
-                workout_type = st.text_input("Вид тренировки:", placeholder="Например: Йога, Бег, Пилатес...", key="workout_type_text")
+                workout_type = st.text_input(
+                    "Вид тренировки:", 
+                    value=auto_workout_type if auto_workout_type else "",
+                    placeholder="Например: Йога, Бег, Пилатес...", 
+                    key="workout_type_text"
+                )
                 workout_type_clean = workout_type
             
             col1, col2 = st.columns(2)
@@ -2081,16 +2119,29 @@ else:
                     key="workout_intensity"
                 )
             
-            notes = st.text_area("Заметки:", placeholder="Как прошла тренировка? Что понравилось?", key="workout_notes")
+            notes = st.text_area(
+                "Заметки:", 
+                placeholder="Как прошла тренировка? Что понравилось?", 
+                key="workout_notes",
+                value=f"Программа: {st.session_state.selected_program_for_workout}\nДень: {auto_day}" if st.session_state.selected_program_for_workout else ""
+            )
             
             # Если есть текущая программа, добавляем информацию о ней
-            current_program = user_profile.get('current_program')
+            current_program = user_profile.get('current_program') or st.session_state.selected_program_for_workout
             program_id = None
             day = None
             if current_program:
                 program_id = current_program
                 day_options = [f"День {i}" for i in range(1, 8)]
-                day = st.selectbox("День программы:", options=day_options, key="workout_day")
+                default_index = 0
+                if auto_day:
+                    try:
+                        day_num = int(auto_day.split()[1])
+                        if 1 <= day_num <= 7:
+                            default_index = day_num - 1
+                    except:
+                        pass
+                day = st.selectbox("День программы:", options=day_options, index=default_index, key="workout_day")
             
             submit_button = st.form_submit_button("💾 Сохранить тренировку", use_container_width=True)
             
@@ -2108,12 +2159,23 @@ else:
                 if success:
                     st.success(message)
                     st.balloons()
-                    # Сбрасываем просмотр программы
+                    # Сбрасываем состояния
+                    st.session_state.selected_program_for_workout = None
+                    st.session_state.selected_day_for_workout = None
+                    st.session_state.selected_workout_title = None
                     if 'show_program_details' in st.session_state:
                         st.session_state.show_program_details = None
                     st.rerun()
                 else:
                     st.error(message)
+        
+        # Кнопка для сброса автозаполнения
+        if st.session_state.selected_program_for_workout:
+            if st.button("🔄 Очистить автозаполнение", use_container_width=True):
+                st.session_state.selected_program_for_workout = None
+                st.session_state.selected_day_for_workout = None
+                st.session_state.selected_workout_title = None
+                st.rerun()
 
     # Мой прогресс
     elif st.session_state.current_page == "📈 Мой прогресс":
@@ -2369,18 +2431,12 @@ if st.session_state.get('show_program_details'):
         st.markdown(f"### 📋 {program_info['name']}")
         
         level_info = app.levels.get(program_info['level'], {})
-        st.markdown(f"**Уровень:** <span class='goal-badge {level_info.get("color", "level-beginner")}'>{level_info.get('name', 'Начальный')}</span>", unsafe_allow_html=True)
+        st.markdown(f"**Уровень:** <span class='goal-badge {level_info.get('color', 'level-beginner')}'>{level_info.get('name', 'Начальный')}</span>", unsafe_allow_html=True)
         
         # Получаем все дни тренировок
         workout_days = app.get_all_workout_days(program_id)
         
         if workout_days:
-            # Выбор дня тренировки
-            if st.session_state.get('selected_day') and st.session_state.selected_day in workout_days:
-                selected_day = st.session_state.selected_day
-            else:
-                selected_day = workout_days[0]
-            
             # Создаем табы для дней
             tabs = st.tabs([f"День {i+1}" for i in range(len(workout_days))])
             
