@@ -15,7 +15,7 @@ warnings.filterwarnings('ignore')
 
 # Настройка страницы
 st.set_page_config(
-    page_title="💪 Умный Фитнес Помощник",
+    page_title="💪 Фитнес Помощник",
     page_icon="💪",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -68,9 +68,20 @@ st.markdown("""
     }
     .progress-card {
         background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
-        padding: 1rem;
+        padding: 1.5rem;
         border-radius: 10px;
         margin: 0.5rem 0;
+        text-align: center;
+    }
+    .progress-metric {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin: 0.5rem 0;
+    }
+    .progress-label {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 0.5rem;
     }
     .sport-icon {
         font-size: 2rem;
@@ -127,6 +138,19 @@ st.markdown("""
         text-align: center;
         margin: 1rem 0;
         animation: pulse 2s infinite;
+    }
+    .feedback-button {
+        font-size: 1.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        border: 2px solid #ddd;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .feedback-button:hover {
+        background: #f0f0f0;
+        transform: scale(1.1);
     }
     @keyframes pulse {
         0% { opacity: 1; }
@@ -413,7 +437,7 @@ class SelfLearningFitnessAssistant:
                     'session_duration': 30,
                     'activities': ['yoga', 'stretching'],
                     'schedule': [
-                        'День 1: Утренная йога 20 мин',
+                        'День 1: Утренняя йога 20 мин',
                         'День 2: Вечерняя растяжка 30 мин',
                         'День 3: Йога для спины 25 мин',
                         'День 4: Отдых',
@@ -421,7 +445,7 @@ class SelfLearningFitnessAssistant:
                     ],
                     'workouts': {
                         'day1': {
-                            'title': 'Утренная йога',
+                            'title': 'Утренняя йога',
                             'warmup': '5 минут дыхательных упражнений',
                             'exercises': [
                                 {'type': 'yoga', 'name': 'Поза горы', 'duration': '2 минуты'},
@@ -430,7 +454,7 @@ class SelfLearningFitnessAssistant:
                             ],
                             'cooldown': '5 минут медитации',
                             'video_url': 'https://www.youtube.com/watch?v=VaoV1PrYft4',
-                            'video_description': 'Утренная йога для начинающих'
+                            'video_description': 'Утренняя йога для начинающих'
                         }
                     }
                 }
@@ -517,11 +541,9 @@ class SelfLearningFitnessAssistant:
                 self.model = joblib.load(model_path)
                 self.scaler = joblib.load(os.path.join(self.data_dir, 'scaler.pkl'))
                 self.label_encoder = joblib.load(os.path.join(self.data_dir, 'label_encoder.pkl'))
-                st.success("✅ Загружена существующая ML модель")
                 return True
-            except:
+            except Exception as e:
                 # Если ошибка загрузки, создаем новую модель
-                st.warning("⚠️ Ошибка загрузки модели, создаем новую")
                 return self.train_initial_model()
         else:
             # Создаем и обучаем модель на синтетических данных
@@ -610,7 +632,6 @@ class SelfLearningFitnessAssistant:
             with open(os.path.join(self.data_dir, 'model_info.json'), 'w') as f:
                 json.dump(model_info, f, indent=2)
             
-            st.success(f"✅ Создана новая ML модель на {n_samples} синтетических примерах")
             return True
         except Exception as e:
             st.error(f"❌ Ошибка при обучении начальной модели: {e}")
@@ -698,7 +719,7 @@ class SelfLearningFitnessAssistant:
                     if success:
                         st.session_state.auto_retrain_message = message
         except Exception as e:
-            st.error(f"Ошибка проверки необходимости дообучения: {e}")
+            pass
     
     def retrain_model_with_feedback(self, force_retrain=False):
         """Дообучает модель на основе накопленных отзывов пользователей"""
@@ -906,123 +927,13 @@ class SelfLearningFitnessAssistant:
             # Ограничиваем количество программ
             recommended_programs = recommended_programs[:3]
             
-            # Добавляем систему обратной связи если требуется
-            if recommended_programs and display_feedback and st.session_state.get('authenticated'):
-                for program in recommended_programs:
-                    with st.container():
-                        level_info = self.levels.get(program['level'], {})
-                        
-                        # Получаем информацию об активностях
-                        activity_icons = ""
-                        for activity_id in program.get('activities', []):
-                            activity = self.activity_types.get(activity_id, {})
-                            activity_icons += f"{activity.get('icon', '🏃')} "
-                        
-                        st.markdown(f"""
-                        <div class="training-card">
-                            <h3>{activity_icons} {program['name']}</h3>
-                            <p><strong>Уровень:</strong> <span class='goal-badge {level_info.get("color", "level-beginner")}'>{level_info.get('name', 'Начальный')}</span> | <strong>Продолжительность:</strong> {program['duration_weeks']} недель</p>
-                            <p>{program['description']}</p>
-                            <p><strong>Расписание:</strong></p>
-                            <ul>
-                        """, unsafe_allow_html=True)
-                        
-                        for session in program.get('schedule', []):
-                            st.markdown(f"<li>{session}</li>", unsafe_allow_html=True)
-                        
-                        st.markdown("</ul>", unsafe_allow_html=True)
-                        
-                        # Советы по питанию
-                        if 'nutrition_tips' in program:
-                            st.markdown("<p><strong>Советы по питанию:</strong></p><ul>", unsafe_allow_html=True)
-                            for tip in program['nutrition_tips']:
-                                st.markdown(f"<li>{tip}</li>", unsafe_allow_html=True)
-                            st.markdown("</ul>", unsafe_allow_html=True)
-                        
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            # Кнопка для выбора программы
-                            if st.button(f"🎯 Выбрать программу", key=f"select_{program['id']}", use_container_width=True):
-                                if self.set_current_program(st.session_state.current_user, program['id']):
-                                    st.success(f"✅ Программа '{program['name']}' выбрана!")
-                                    st.rerun()
-                                else:
-                                    st.error("❌ Ошибка при выборе программы")
-                        
-                        with col2:
-                            # Кнопка для просмотра деталей
-                            if st.button(f"📋 Посмотреть тренировки", key=f"details_{program['id']}", use_container_width=True):
-                                st.session_state.show_program_details = program['id']
-                                st.rerun()
-                        
-                        # --- СИСТЕМА ОБРАТНОЙ СВЯЗИ ---
-                        st.markdown('<div class="feedback-section">', unsafe_allow_html=True)
-                        st.caption("**Помогите нам стать лучше!** Оцените эту рекомендацию:")
-                        
-                        feedback_cols = st.columns(5)
-                        ratings = ["🤬", "😞", "😐", "🙂", "😍"]
-                        ratings_values = [1, 2, 3, 4, 5]
-                        
-                        for idx, (col, emoji, rating_val) in enumerate(zip(feedback_cols, ratings, ratings_values)):
-                            with col:
-                                if st.button(emoji, key=f"rating_{program['id']}_{rating_val}", use_container_width=True):
-                                    # Собираем дополнительную информацию если оценка низкая
-                                    if rating_val <= 2:
-                                        with st.form(key=f"low_rating_form_{program['id']}"):
-                                            st.write("**Пожалуйста, укажите почему:**")
-                                            actual_goal = st.selectbox(
-                                                "Какая была бы более подходящая цель?",
-                                                list(self.goals.keys()),
-                                                format_func=lambda x: self.goals[x]['name'],
-                                                key=f"actual_goal_{program['id']}"
-                                            )
-                                            comment = st.text_area("Дополнительные комментарии:", key=f"comment_{program['id']}")
-                                            
-                                            if st.form_submit_button("Отправить подробный отзыв"):
-                                                success, message = self.collect_feedback(
-                                                    st.session_state.current_user,
-                                                    program['id'],
-                                                    rating_val,
-                                                    final_goal,
-                                                    actual_goal,
-                                                    comment
-                                                )
-                                                if success:
-                                                    st.success("Спасибо за подробный отзыв! Это очень поможет улучшить рекомендации.")
-                                                else:
-                                                    st.error(message)
-                                                st.rerun()
-                                    else:
-                                        # Для высоких оценок просто собираем отзыв
-                                        success, message = self.collect_feedback(
-                                            st.session_state.current_user,
-                                            program['id'],
-                                            rating_val,
-                                            final_goal,
-                                            None,
-                                            f"Автоматический отзыв: {emoji}"
-                                        )
-                                        if success:
-                                            st.success("Спасибо за вашу оценку! 👍")
-                                        else:
-                                            st.error(message)
-                                        st.rerun()
-                        
-                        st.markdown('</div>', unsafe_allow_html=True)
-            
-            return recommended_programs if display_feedback else recommended_programs
+            return recommended_programs
             
         except Exception as e:
             # В случае ошибки возвращаем программы по умолчанию
             st.warning(f"Используются рекомендации по умолчанию. Ошибка: {str(e)[:100]}")
             primary_goal = user_profile.get('goals', {}).get('primary_goal', 'weight_loss')
             return self.training_programs.get(primary_goal, self.training_programs['weight_loss'])[:3]
-    
-    # Остальные методы класса (get_exercises_for_program, get_all_workout_days, calculate_calories_needed, 
-    # get_user_filename, get_user_profile_filename, register_user, login_user, save_user_profile, 
-    # load_user_profile, complete_questionnaire, set_current_program, get_bmi_category, add_workout, 
-    # get_all_workouts, get_statistics, calculate_streak, get_achievements)
-    # остаются БЕЗ ИЗМЕНЕНИЙ из вашего исходного кода, так как они не связаны с ML моделью
     
     def get_exercises_for_program(self, program_id, day=None):
         """Возвращает упражнения для конкретной программы и дня"""
@@ -1182,7 +1093,6 @@ class SelfLearningFitnessAssistant:
                 json.dump(profile, f, indent=2)
             return True
         except Exception as e:
-            st.error(f"Ошибка сохранения профиля: {e}")
             return False
     
     def load_user_profile(self, username):
@@ -1475,12 +1385,16 @@ def initialize_session_state():
         st.session_state.show_admin_panel = False
     if 'auto_retrain_message' not in st.session_state:
         st.session_state.auto_retrain_message = None
+    if 'feedback_submitted' not in st.session_state:
+        st.session_state.feedback_submitted = {}
+    if 'rating_temp' not in st.session_state:
+        st.session_state.rating_temp = {}
 
 initialize_session_state()
 
 # Страница входа/регистрации
 if not st.session_state.authenticated:
-    st.markdown('<h1 class="main-header">🤖 Умный Фитнес Помощник</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">💪 Фитнес Помощник</h1>', unsafe_allow_html=True)
     
     # Показываем уведомление об автоматическом дообучении если есть
     if st.session_state.get('auto_retrain_message'):
@@ -1796,7 +1710,7 @@ else:
                 st.session_state.show_questionnaire = True
                 st.rerun()
         else:
-            # Персональная информация
+            # Персональная информация - ВНУТРИ прямоугольников
             personal_info = user_profile.get('personal_info', {})
             goals = user_profile.get('goals', {})
             
@@ -1804,23 +1718,27 @@ else:
             
             with col1:
                 st.markdown('<div class="progress-card">', unsafe_allow_html=True)
-                st.metric("Текущий вес", f"{personal_info.get('weight', 0)} кг")
-                st.metric("Целевой вес", f"{goals.get('target_weight', 0)} кг")
+                st.markdown('<div class="progress-label">Текущий вес</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="progress-metric">{personal_info.get("weight", 0)} кг</div>', unsafe_allow_html=True)
+                st.markdown('<div class="progress-label">Желаемый вес</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="progress-metric">{goals.get("target_weight", 0)} кг</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with col2:
                 st.markdown('<div class="progress-card">', unsafe_allow_html=True)
                 bmi = user_profile.get('bmi', 0)
                 bmi_category = user_profile.get('bmi_category', '')
-                st.metric("ИМТ", f"{bmi:.1f}")
-                st.caption(f"Категория: {bmi_category}")
+                st.markdown('<div class="progress-label">ИМТ</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="progress-metric">{bmi:.1f}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="progress-label">Категория: {bmi_category}</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with col3:
                 st.markdown('<div class="progress-card">', unsafe_allow_html=True)
                 calories_needed, tdee = app.calculate_calories_needed(user_profile)
-                st.metric("Калории в день", f"{calories_needed}")
-                st.caption(f"Расход: {tdee} ккал")
+                st.markdown('<div class="progress-label">Калории в день</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="progress-metric">{calories_needed}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="progress-label">Расход: {tdee} ккал</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
             
             # Если у пользователя есть текущая программа
@@ -1848,7 +1766,8 @@ else:
                         st.markdown(f"**Тренировок в неделю:** {current_program['sessions_per_week']}")
                     
                     with col2:
-                        if st.button("📋 Показать тренировки", use_container_width=True):
+                        # АКТИВНАЯ кнопка для просмотра тренировок
+                        if st.button("📋 Показать тренировки", use_container_width=True, key="show_current_program"):
                             st.session_state.show_program_details = current_program_id
                             st.rerun()
                     
@@ -1861,7 +1780,135 @@ else:
             
             recommended_programs = app.recommend_programs_based_on_profile(user_profile, display_feedback=True)
             
-            if not recommended_programs:
+            if recommended_programs:
+                for program in recommended_programs:
+                    with st.container():
+                        level_info = app.levels.get(program['level'], {})
+                        
+                        # Получаем информацию об активностях
+                        activity_icons = ""
+                        for activity_id in program.get('activities', []):
+                            activity = app.activity_types.get(activity_id, {})
+                            activity_icons += f"{activity.get('icon', '🏃')} "
+                        
+                        st.markdown(f"""
+                        <div class="training-card">
+                            <h3>{activity_icons} {program['name']}</h3>
+                            <p><strong>Уровень:</strong> <span class='goal-badge {level_info.get("color", "level-beginner")}'>{level_info.get('name', 'Начальный')}</span> | <strong>Продолжительность:</strong> {program['duration_weeks']} недель</p>
+                            <p>{program['description']}</p>
+                            <p><strong>Расписание:</strong></p>
+                            <ul>
+                        """, unsafe_allow_html=True)
+                        
+                        for session in program.get('schedule', []):
+                            st.markdown(f"<li>{session}</li>", unsafe_allow_html=True)
+                        
+                        st.markdown("</ul>", unsafe_allow_html=True)
+                        
+                        # Советы по питанию
+                        if 'nutrition_tips' in program:
+                            st.markdown("<p><strong>Советы по питанию:</strong></p><ul>", unsafe_allow_html=True)
+                            for tip in program['nutrition_tips']:
+                                st.markdown(f"<li>{tip}</li>", unsafe_allow_html=True)
+                            st.markdown("</ul>", unsafe_allow_html=True)
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            # АКТИВНАЯ кнопка для выбора программы
+                            if st.button(f"🎯 Выбрать программу", key=f"select_{program['id']}", use_container_width=True):
+                                if app.set_current_program(st.session_state.current_user, program['id']):
+                                    st.success(f"✅ Программа '{program['name']}' выбрана!")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Ошибка при выборе программы")
+                        
+                        with col2:
+                            # АКТИВНАЯ кнопка для просмотра деталей
+                            if st.button(f"📋 Посмотреть тренировки", key=f"details_{program['id']}", use_container_width=True):
+                                st.session_state.show_program_details = program['id']
+                                st.rerun()
+                        
+                        # --- СИСТЕМА ОБРАТНОЙ СВЯЗИ (ИСПРАВЛЕННАЯ) ---
+                        st.markdown('<div class="feedback-section">', unsafe_allow_html=True)
+                        st.caption("**Помогите нам стать лучше!** Оцените эту рекомендацию:")
+                        
+                        feedback_key = f"feedback_{program['id']}"
+                        
+                        # Используем session_state для хранения временного рейтинга
+                        if feedback_key not in st.session_state.rating_temp:
+                            st.session_state.rating_temp[feedback_key] = None
+                        
+                        feedback_cols = st.columns(5)
+                        ratings = ["🤬", "😞", "😐", "🙂", "😍"]
+                        ratings_values = [1, 2, 3, 4, 5]
+                        
+                        rating_submitted = False
+                        
+                        for idx, (col, emoji, rating_val) in enumerate(zip(feedback_cols, ratings, ratings_values)):
+                            with col:
+                                # Создаем уникальный ключ для каждой кнопки
+                                button_key = f"rating_{program['id']}_{rating_val}"
+                                
+                                if st.button(emoji, key=button_key, use_container_width=True):
+                                    st.session_state.rating_temp[feedback_key] = rating_val
+                                    
+                                    # Если оценка низкая, спрашиваем почему
+                                    if rating_val <= 2:
+                                        st.session_state.feedback_submitted[feedback_key] = False
+                                        st.rerun()
+                                    else:
+                                        # Для высоких оценок сразу сохраняем
+                                        success, message = app.collect_feedback(
+                                            st.session_state.current_user,
+                                            program['id'],
+                                            rating_val,
+                                            user_profile.get('goals', {}).get('primary_goal', 'weight_loss'),
+                                            None,
+                                            f"Оценка: {rating_val}/5"
+                                        )
+                                        if success:
+                                            st.success("Спасибо за вашу оценку! 👍")
+                                            st.session_state.feedback_submitted[feedback_key] = True
+                                        else:
+                                            st.error(message)
+                                        st.rerun()
+                        
+                        # Если выбран низкий рейтинг (1-2), показываем форму для комментария
+                        if (feedback_key in st.session_state.rating_temp and 
+                            st.session_state.rating_temp[feedback_key] is not None and
+                            st.session_state.rating_temp[feedback_key] <= 2 and
+                            not st.session_state.feedback_submitted.get(feedback_key, False)):
+                            
+                            st.markdown("---")
+                            st.write("**Пожалуйста, укажите почему:**")
+                            
+                            with st.form(key=f"low_rating_form_{program['id']}"):
+                                actual_goal = st.selectbox(
+                                    "Какая была бы более подходящая цель?",
+                                    list(app.goals.keys()),
+                                    format_func=lambda x: app.goals[x]['name'],
+                                    key=f"actual_goal_{program['id']}"
+                                )
+                                comment = st.text_area("Дополнительные комментарии:", key=f"comment_{program['id']}")
+                                
+                                if st.form_submit_button("Отправить подробный отзыв"):
+                                    success, message = app.collect_feedback(
+                                        st.session_state.current_user,
+                                        program['id'],
+                                        st.session_state.rating_temp[feedback_key],
+                                        user_profile.get('goals', {}).get('primary_goal', 'weight_loss'),
+                                        actual_goal,
+                                        comment
+                                    )
+                                    if success:
+                                        st.success("Спасибо за подробный отзыв! Это очень поможет улучшить рекомендации.")
+                                        st.session_state.feedback_submitted[feedback_key] = True
+                                    else:
+                                        st.error(message)
+                                    st.rerun()
+                        
+                        st.markdown('</div>', unsafe_allow_html=True)
+            else:
                 st.info("""
                 💡 **Рекомендации появятся после заполнения анкеты.**
                 
@@ -2302,7 +2349,7 @@ else:
                     else:
                         st.error("❌ Ошибка обновления профиля")
 
-# Обработка просмотра деталей программы
+# Обработка просмотра деталей программы (ИСПРАВЛЕННАЯ)
 if st.session_state.get('show_program_details'):
     program_id = st.session_state.show_program_details
     
@@ -2384,13 +2431,21 @@ if st.session_state.get('show_program_details'):
                         if 'cooldown' in exercises:
                             st.markdown(f"**🧘 Заминка:** {exercises['cooldown']}")
                         
-                        # Кнопка для добавления этой тренировки
+                        # Кнопка для добавления этой тренировки (ИСПРАВЛЕННАЯ)
                         st.markdown("---")
                         col1, col2 = st.columns(2)
                         with col1:
-                            if st.button(f"➕ Добавить тренировку День {i+1}", use_container_width=True, key=f"add_{day_key}"):
+                            # АКТИВНАЯ кнопка для добавления тренировки
+                            add_key = f"add_workout_{day_key}_{i}"
+                            if st.button(f"➕ Добавить тренировку День {i+1}", 
+                                       use_container_width=True, 
+                                       key=add_key):
+                                # Сохраняем информацию о выбранной программе и дне
+                                st.session_state.selected_program_for_workout = program_id
+                                st.session_state.selected_day_for_workout = f"День {i+1}"
+                                st.session_state.selected_workout_title = exercises.get('title', f'Тренировка {i+1}')
+                                # Переходим на страницу добавления тренировки
                                 st.session_state.current_page = "➕ Добавить тренировку"
-                                st.session_state.selected_day = f"День {i+1}"
                                 st.rerun()
                         with col2:
                             if st.button("❌ Закрыть", use_container_width=True, key=f"close_{day_key}"):
@@ -2411,7 +2466,7 @@ if st.session_state.get('show_program_details'):
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #666;'>
-    <p>🤖 <strong>Умный Фитнес Помощник v9.0</strong> | Самообучающаяся система рекомендаций</p>
+    <p>💪 <strong>Фитнес Помощник v10.0</strong> | Самообучающаяся система рекомендаций</p>
     <p>Ваш персональный ИИ-тренер, который становится умнее с каждым отзывом!</p>
 </div>
 """, unsafe_allow_html=True)
